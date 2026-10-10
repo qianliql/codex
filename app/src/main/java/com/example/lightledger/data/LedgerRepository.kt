@@ -65,9 +65,9 @@ class LedgerRepository(private val dao: LedgerDao) {
     suspend fun saveCategoryPreferences(category: Category) = dao.saveCategoryPreferences(category)
     suspend fun moveCategory(id: Long, delta: Int) = dao.moveCategory(id, delta)
     suspend fun deleteCategory(category: Category) {
-        require(!category.isSystem) { "系统分类不能删除" }
         dao.removeCategory(category)
     }
+    suspend fun categoryUsage(id: Long) = dao.categoryUsage(id)
     suspend fun tags() = dao.tags()
     suspend fun tagTotals() = dao.tagTotals()
     suspend fun addTag(name: String) = dao.insertTag(Tag(name = name.trim()))

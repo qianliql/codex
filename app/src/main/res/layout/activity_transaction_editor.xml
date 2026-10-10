@@ -18,32 +18,35 @@
                     <com.google.android.material.textfield.TextInputLayout android:id="@+id/amountInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" app:boxBackgroundMode="none" app:hintEnabled="false" app:prefixText="¥">
                         <com.google.android.material.textfield.TextInputEditText android:id="@+id/amount" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="0.00" android:imeOptions="actionNext" android:inputType="numberDecimal" android:maxLines="1" android:textColor="?attr/colorOnSurface" android:textSize="36sp" android:textStyle="bold" />
                     </com.google.android.material.textfield.TextInputLayout>
-                    <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="记录每一笔，慢慢看清生活" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
             <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                     <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="选择分类" />
-                    <com.google.android.material.chip.ChipGroup android:id="@+id/categoryChips" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" app:chipSpacingHorizontal="5dp" app:chipSpacingVertical="2dp" app:singleSelection="true" />
+                    <HorizontalScrollView android:id="@+id/categoryScroll" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:scrollbars="horizontal" android:scrollbarSize="2dp" android:fadeScrollbars="false" android:overScrollMode="never">
+                        <FrameLayout android:layout_width="wrap_content" android:layout_height="wrap_content">
+                            <com.google.android.material.chip.ChipGroup android:id="@+id/categoryChips" android:layout_width="wrap_content" android:layout_height="wrap_content" app:chipSpacingHorizontal="4dp" app:chipSpacingVertical="2dp" app:singleSelection="true" />
+                        </FrameLayout>
+                    </HorizontalScrollView>
                     <com.google.android.material.button.MaterialButton android:id="@+id/expandCategories" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="展开不常用分类 ▾" android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
             <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="商户（可选）">
-                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/merchant" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" />
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="备注（可选）">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/note" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textMultiLine" android:minLines="2" android:maxLines="4" />
                     </com.google.android.material.textfield.TextInputLayout>
-                    <CheckBox android:id="@+id/rememberMerchant" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="记住这个商户的分类" android:textColor="?attr/colorOnSurface" android:textSize="14sp" />
                     <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="支付方式" />
-                    <com.google.android.material.chip.ChipGroup android:id="@+id/paymentMethodChips" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" app:chipSpacingHorizontal="5dp" app:chipSpacingVertical="2dp" app:singleSelection="true" app:selectionRequired="true" />
+                    <com.google.android.material.chip.ChipGroup android:id="@+id/paymentMethodChips" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" app:chipSpacingHorizontal="4dp" app:singleLine="true" app:singleSelection="true" app:selectionRequired="true" />
                     <com.google.android.material.button.MaterialButton android:id="@+id/refundLink" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="关联原支出（可选）" android:visibility="gone" />
-                    <com.google.android.material.button.MaterialButton android:id="@+id/moreDetails" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="更多详情 · 时间、标签、备注" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/moreDetails" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="更多 ▾" />
                     <LinearLayout android:id="@+id/additionalDetails" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                        <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="商户（可选）">
+                            <com.google.android.material.textfield.TextInputEditText android:id="@+id/merchant" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                        <CheckBox android:id="@+id/rememberMerchant" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="记住这个商户的分类" android:textColor="?attr/colorOnSurface" android:textSize="14sp" />
                         <com.google.android.material.button.MaterialButton android:id="@+id/timestamp" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" />
                         <com.google.android.material.button.MaterialButton android:id="@+id/tags" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="标签：未选择" />
-                        <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:hint="备注（可选）">
-                            <com.google.android.material.textfield.TextInputEditText android:id="@+id/note" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textMultiLine" />
-                        </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

@@ -90,7 +90,7 @@ class CategoryScreen060Test {
         if (RuntimeEnvironment.getApiLevel() != 29) return
         val path = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888); root.draw(Canvas(bitmap))
-        File(path, "LightLedger-0.6.0-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        File(path, "LightLedger-0.8.0-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
     }
     private fun await(ready: () -> Boolean) {
         val end = System.nanoTime() + 10_000_000_000L

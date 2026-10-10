@@ -10,6 +10,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.core.widget.doAfterTextChanged
+import androidx.core.view.doOnLayout
 import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
 import com.example.lightledger.data.*
@@ -43,6 +44,8 @@ class TransactionEditorActivity : LedgerActivity() {
         binding = ActivityTransactionEditorBinding.inflate(layoutInflater)
         setContentView(binding.root)
         SystemBarInsets.apply(binding.root)
+        EditorChoiceRows.bindCategories(binding.categoryChips, binding.categoryScroll)
+        EditorChoiceRows.bindPayments(binding.paymentMethodChips)
         binding.expandCategories.setOnClickListener { showOccasional = !showOccasional; updateCategoryVisibility() }
         binding.goBack.setOnClickListener { finish() }
         binding.moreDetails.setOnClickListener { showMoreDetails(binding.additionalDetails.visibility != View.VISIBLE) }
@@ -135,7 +138,7 @@ class TransactionEditorActivity : LedgerActivity() {
 
     private fun showMoreDetails(show: Boolean) {
         binding.additionalDetails.visibility = if (show) View.VISIBLE else View.GONE
-        binding.moreDetails.text = if (show) "收起详情" else "更多详情 · 时间、标签、备注"
+        binding.moreDetails.text = if (show) "收起更多 ▴" else "更多 ▾"
     }
 
     private fun setType(type: TransactionType) {
@@ -161,6 +164,7 @@ class TransactionEditorActivity : LedgerActivity() {
         occasional.forEach { category -> categoryChips[category.id]?.visibility = if (showOccasional) View.VISIBLE else View.GONE }
         binding.expandCategories.visibility = if (occasional.isEmpty()) View.GONE else View.VISIBLE
         binding.expandCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（${occasional.size}）▾"
+        EditorChoiceRows.fitCategories(binding.categoryChips, binding.categoryScroll)
     }
 
     private fun addCategoryChip(category: Category) {
@@ -176,7 +180,7 @@ class TransactionEditorActivity : LedgerActivity() {
     }
 
     private fun showPaymentChoices() {
-        PaymentMethod.entries.forEach { method ->
+        PaymentMethod.entries.filter { it != PaymentMethod.OTHER }.forEach { method ->
             val chip = choiceChip(UiFormat.method(method)).apply {
                 setOnCheckedChangeListener { _, checked -> if (checked) selectedPaymentMethod = method }
             }
@@ -184,10 +188,13 @@ class TransactionEditorActivity : LedgerActivity() {
             binding.paymentMethodChips.addView(chip)
         }
         selectPaymentMethod(PaymentMethod.WECHAT)
+        EditorChoiceRows.fitPayments(binding.paymentMethodChips)
     }
 
     private fun selectPaymentMethod(method: PaymentMethod) {
-        paymentChips[method]?.isChecked = true
+        selectedPaymentMethod = method
+        val chip = paymentChips[method]
+        if (chip != null) chip.isChecked = true else binding.paymentMethodChips.clearCheck()
     }
 
     private fun choiceChip(label: String): Chip {
@@ -218,7 +225,10 @@ class TransactionEditorActivity : LedgerActivity() {
         }
         if (categoryId !in categoryChips) categories.firstOrNull { it.id == categoryId }?.let(::addCategoryChip)
         if (categories.any { it.id == categoryId && it.priority == CategoryPriority.OCCASIONAL }) { showOccasional = true; updateCategoryVisibility() }
-        categoryChips[categoryId]?.isChecked = true
+        categoryChips[categoryId]?.let { chip ->
+            chip.isChecked = true
+            binding.categoryChips.doOnLayout { binding.categoryScroll.scrollTo((chip.right - binding.categoryScroll.width).coerceAtLeast(0), 0) }
+        }
     }
 
     private fun chooseTags() {

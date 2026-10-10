@@ -62,9 +62,9 @@ class CategoryActivity : LedgerActivity() {
                 val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
                 item.categoryName.text = category.name
                 CategoryIcons.apply(item.categoryIcon, category.name, category.iconKey)
-                item.categoryHint.text = "${index + 1} · ${CategoryPriority.label(priority)} · 点击编辑"
+                item.categoryHint.text = "${index + 1} · ${CategoryPriority.label(priority)} · 长按调整"
                 item.root.setOnClickListener { editCategory(category) }
-                item.root.setOnLongClickListener { showActions(item.editIcon, category, index, group.size); true }
+                item.root.setOnLongClickListener { choosePriority(category); true }
                 item.editIcon.setOnClickListener { showActions(it, category, index, group.size) }
                 container.addView(item.root)
             }
@@ -76,7 +76,7 @@ class CategoryActivity : LedgerActivity() {
             val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
             item.categoryName.text = category.name; item.categoryHint.text = "暂未选择分类的账单"
             CategoryIcons.apply(item.categoryIcon, category.name, category.iconKey)
-            item.editIcon.visibility = View.GONE
+            item.editIcon.setOnClickListener { showActions(it, category, 0, 1) }
             container.addView(item.root)
         }
     }
@@ -85,7 +85,7 @@ class CategoryActivity : LedgerActivity() {
         PopupMenu(this, anchor).apply {
             menu.add(0, 1, 0, "上移").isEnabled = index > 0
             menu.add(0, 2, 1, "下移").isEnabled = index < size - 1
-            if (!category.isSystem) menu.add(0, 3, 2, "删除分类")
+            menu.add(0, 3, 2, "删除分类")
             setOnMenuItemClickListener { item ->
                 if (item.itemId == 3) confirmDelete(category)
                 else lifecycleScope.launch {
@@ -96,6 +96,27 @@ class CategoryActivity : LedgerActivity() {
             }
             show()
         }
+    }
+
+    private fun choosePriority(category: Category) {
+        val labels = arrayOf("通知栏 · 最多3个", "常用 · 最多8个", "不常用 · 默认折叠")
+        MaterialAlertDialogBuilder(this).setTitle("${category.name}的重要度")
+            .setSingleChoiceItems(labels, category.priority) { dialog, priority ->
+                val choice = dialog as AlertDialog
+                choice.listView.isEnabled = false
+                lifecycleScope.launch {
+                    try {
+                        val current = repository.categoryList().firstOrNull { it.id == category.id }
+                            ?: error("分类已不存在")
+                        repository.saveCategoryPreferences(current.copy(priority = priority))
+                        dialog.dismiss()
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) {
+                        choice.listView.setItemChecked(category.priority, true)
+                        toast(e.localizedMessage ?: "调整失败，请重试")
+                    } finally { choice.listView.isEnabled = true }
+                }
+            }.setNegativeButton("取消", null).show()
     }
 
     private fun editCategory(category: Category?) {
@@ -155,10 +176,19 @@ class CategoryActivity : LedgerActivity() {
     }
 
     private fun confirmDelete(category: Category) {
-        MaterialAlertDialogBuilder(this).setTitle("删除 ${category.name}？").setMessage("相关账单将变为未分类，账单本身不会删除。")
-            .setNegativeButton("取消", null).setPositiveButton("删除") { _, _ -> lifecycleScope.launch {
-                try { repository.deleteCategory(category) } catch (e: Exception) { toast("删除失败，请重试") }
-            } }.show()
+        lifecycleScope.launch {
+            try {
+                val usage = repository.categoryUsage(category.id)
+                MaterialAlertDialogBuilder(this@CategoryActivity).setTitle("删除 ${category.name}？")
+                    .setMessage("当前 ${usage.billCount} 笔相关账单将变为未分类，金额、备注和账单本身保留。\n${usage.ruleCount} 条使用此分类的商户自动分类规则也会删除。")
+                    .setNegativeButton("取消", null).setPositiveButton("确认删除") { _, _ -> lifecycleScope.launch {
+                        try { repository.deleteCategory(category) }
+                        catch (e: CancellationException) { throw e }
+                        catch (e: Exception) { toast("删除失败，请重试") }
+                    } }.show()
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { toast("读取分类信息失败，请重试") }
+        }
     }
     override fun onSaveInstanceState(outState: Bundle) { outState.putBoolean("occasional_expanded", expanded); super.onSaveInstanceState(outState) }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()

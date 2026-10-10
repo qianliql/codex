@@ -1,5 +1,6 @@
 package com.example.lightledger.ui
 
+import android.animation.ValueAnimator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -7,6 +8,7 @@ import android.os.SystemClock
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
 import com.example.lightledger.R
 import com.example.lightledger.databinding.ActivityMainBinding
 import com.example.lightledger.notification.NotificationAccess
@@ -32,9 +34,16 @@ class MainActivity : LedgerActivity() {
     fun openStatistics() = openPage(StatisticsFragment())
 
     private fun openPage(fragment: Fragment) {
-        supportFragmentManager.beginTransaction().replace(R.id.pageContainer, fragment)
+        pageTransaction().replace(R.id.pageContainer, fragment)
             .addToBackStack("home_detail").commit()
     }
+
+    private fun pageTransaction(): FragmentTransaction = supportFragmentManager.beginTransaction()
+        .setReorderingAllowed(true).apply {
+            if (ValueAnimator.areAnimatorsEnabled()) setCustomAnimations(
+                R.animator.ledger_page_enter, R.animator.ledger_page_exit,
+                R.animator.ledger_page_enter, R.animator.ledger_page_exit)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,6 +108,6 @@ class MainActivity : LedgerActivity() {
             R.id.nav_settings -> SettingsFragment()
             else -> HomeFragment()
         }
-        supportFragmentManager.beginTransaction().replace(R.id.pageContainer, fragment).commit()
+        pageTransaction().replace(R.id.pageContainer, fragment).commit()
     }
 }

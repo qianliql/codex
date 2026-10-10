@@ -65,6 +65,8 @@ interface LedgerDao {
         group.forEachIndexed { index, category -> updateCategory(category.copy(sortOrder = index)) }
     }
     @Delete suspend fun deleteCategory(category: Category)
+    @Query("SELECT (SELECT COUNT(*) FROM transactions WHERE categoryId = :categoryId) AS billCount, (SELECT COUNT(*) FROM merchant_rules WHERE categoryId = :categoryId) AS ruleCount")
+    suspend fun categoryUsage(categoryId: Long): CategoryUsage
     @Query("UPDATE transactions SET categoryId = NULL, classificationStatus = 'UNCLASSIFIED', updatedAt = :now WHERE categoryId = :categoryId")
     suspend fun unclassifyCategoryTransactions(categoryId: Long, now: Long)
     @Transaction suspend fun removeCategory(category: Category) {
@@ -171,14 +173,6 @@ interface LedgerDao {
         insertRules(snapshot.merchantRules)
         insertTransactionTags(snapshot.transactionTags)
         insertSettings(snapshot.settings)
-        val names = snapshot.categories.map { it.name }.toSet()
-        (CategoryCatalog.primary + CategoryCatalog.unclassified)
-            .filterNot { it in names }
-            .forEach { name ->
-                val preferred = CategoryPriority.defaultFor(name)
-                val available = categoryList().count { it.priority == preferred && it.name != CategoryCatalog.unclassified } < CategoryPriority.limit(preferred)
-                insertCategory(Category(name = name, isSystem = true, priority = if (available) preferred else CategoryPriority.OCCASIONAL, sortOrder = CategoryCatalog.primary.indexOf(name)))
-            }
     }
 
     @Insert suspend fun insertTransaction(transaction: LedgerTransaction): Long

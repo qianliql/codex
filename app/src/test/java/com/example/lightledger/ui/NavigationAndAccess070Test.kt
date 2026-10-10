@@ -111,5 +111,5 @@ class NavigationAndAccess070Test {
         Settings.Secure.putString(app.contentResolver, "enabled_notification_listeners",
             if (enabled) ComponentName(app, PaymentNotificationService::class.java).flattenToString() else "")
     }
-    private fun idle(milliseconds: Long = 50) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(milliseconds))
+    private fun idle(milliseconds: Long = 250) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(milliseconds))
 }

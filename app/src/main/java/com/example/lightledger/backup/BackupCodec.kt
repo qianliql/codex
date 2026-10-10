@@ -67,7 +67,6 @@ object BackupCodec {
         val tagIds = data.tags.map { it.id }
         require(data.categories.all { it.priority in 0..2 }) { "分类优先级无效" }
         require(listOf(0, 1).all { p -> data.categories.count { it.priority == p && it.name != CategoryCatalog.unclassified } <= CategoryPriority.limit(p) }) { "常用分类数量超过限制" }
-        require(data.categories.isNotEmpty() && data.categories.any { it.name == "未分类" }) { "备份缺少基础分类" }
         require(unique(categoryIds) && unique(transactionIds) && unique(tagIds) &&
             unique(data.merchantRules.map { it.id }) && unique(data.settings.map { it.key })) { "备份含重复 ID" }
         require(categoryIds.all { it > 0 } && transactionIds.all { it > 0 } && tagIds.all { it > 0 }) { "备份 ID 无效" }

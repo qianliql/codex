@@ -248,9 +248,11 @@ class LayoutCompatibilityTest {
 
     private fun measure(root: View) {
         val metrics = root.resources.displayMetrics
-        root.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(metrics.heightPixels, View.MeasureSpec.EXACTLY))
-        root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+        repeat(2) {
+            root.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(metrics.heightPixels, View.MeasureSpec.EXACTLY))
+            root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+        }
     }
 
     private fun assertTextFits(view: View) {
@@ -290,9 +292,11 @@ class LayoutCompatibilityTest {
         }
         root.findViewById<ChipGroup>(R.id.categoryChips)?.let { group ->
             CategoryCatalog.primary.forEach { label -> addChip(group, label, label == "正餐") }
+            root.findViewById<android.widget.HorizontalScrollView>(R.id.categoryScroll)?.let { EditorChoiceRows.bindCategories(group, it) }
         }
         root.findViewById<ChipGroup>(R.id.paymentMethodChips)?.let { group ->
-            PaymentMethod.entries.forEach { addChip(group, UiFormat.method(it), it == PaymentMethod.WECHAT) }
+            PaymentMethod.entries.filter { it != PaymentMethod.OTHER }.forEach { addChip(group, UiFormat.method(it), it == PaymentMethod.WECHAT) }
+            EditorChoiceRows.bindPayments(group)
         }
         root.findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.typeToggle)?.check(R.id.expenseOption)
         root.findViewById<TextView>(R.id.amount)?.setText("18.60")
@@ -322,7 +326,7 @@ class LayoutCompatibilityTest {
         val directory = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
-        val file = File(directory, "LightLedger-0.7.0-$name.png")
+        val file = File(directory, "LightLedger-0.8.0-$name.png")
         file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()

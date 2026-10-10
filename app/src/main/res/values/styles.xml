@@ -8,7 +8,14 @@
         <item name="android:windowLightStatusBar">true</item><item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@color/white</item><item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowBackground">@color/ledger_background</item><item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:windowAnimationStyle">@style/LedgerWindowAnimation</item>
         <item name="materialButtonStyle">@style/LedgerButton</item><item name="textInputStyle">@style/LedgerInput</item>
+    </style>
+    <style name="LedgerWindowAnimation" parent="android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/ledger_activity_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/ledger_activity_exit</item>
+        <item name="android:activityCloseEnterAnimation">@anim/ledger_activity_enter</item>
+        <item name="android:activityCloseExitAnimation">@anim/ledger_activity_exit</item>
     </style>
     <style name="LedgerPageTitle"><item name="android:textColor">?attr/colorOnSurface</item><item name="android:textSize">28sp</item><item name="android:fontFamily">sans-serif-medium</item></style>
     <style name="LedgerSectionTitle"><item name="android:textColor">?attr/colorOnSurface</item><item name="android:textSize">18sp</item><item name="android:fontFamily">sans-serif-medium</item></style>

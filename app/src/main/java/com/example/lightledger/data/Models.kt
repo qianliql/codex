@@ -88,6 +88,7 @@ data class MonthTotals(val expense: Long, val refund: Long, val recordedMonths: 
 }
 
 data class CategoryTotal(val label: String, val amountCents: Long, val iconKey: String? = null)
+data class CategoryUsage(val billCount: Int, val ruleCount: Int)
 data class PaymentTotal(val paymentMethod: PaymentMethod, val amountCents: Long)
 data class TimeTotal(val period: String, val expense: Long, val refund: Long)
 data class TagTotal(val id: Long, val name: String, val expense: Long)
