@@ -45,9 +45,9 @@ class TransactionsFragment : Fragment() {
     private val repository by lazy { (requireActivity().application as LedgerApp).repository }
     private var binding: FragmentTransactionsBinding? = null
     private var adapter: TransactionAdapter? = null
-    private var filter = TransactionFilter()
+    private var monthCursor = MonthSelection.at()
+    private var filter = MonthSelection.apply(TransactionFilter(), monthCursor)
     private val pendingOnly get() = filter.pendingOnly
-    private var summaryJob: Job? = null
     private val rows = mutableListOf<TransactionRow>()
     private var queryJob: Job? = null
     private var queryGeneration = 0
@@ -71,7 +71,10 @@ class TransactionsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val b = binding ?: return
-        if (savedInstanceState != null) filter = TransactionFilter.readFrom(savedInstanceState)
+        if (savedInstanceState != null) {
+            filter = TransactionFilter.readFrom(savedInstanceState)
+            monthCursor = StatisticsPeriod(savedInstanceState.getInt("month_year", monthCursor.year), savedInstanceState.getInt("month_number", monthCursor.month!!))
+        }
         selectedIds.addAll(savedInstanceState?.getLongArray("selected_ids")?.toList().orEmpty())
         arguments?.getLong("select_id", 0)?.takeIf { it > 0 && savedInstanceState == null }?.let { selectedIds.add(it) }
         selectionMode = savedInstanceState?.getBoolean("selection_mode") ?: selectedIds.isNotEmpty()
@@ -101,8 +104,9 @@ class TransactionsFragment : Fragment() {
         b.addTransaction.setOnClickListener { startActivity(Intent(requireContext(), TransactionEditorActivity::class.java)) }
         b.moreActions.setOnClickListener { showMoreActions() }
         b.searchFilters.setOnClickListener { showFilters() }
-        b.filterDescription.setOnClickListener { showFilters() }
-        b.clearFilters.setOnClickListener { filter = TransactionFilter(); refresh() }
+        b.previousMonth.setOnClickListener { chooseMonth(MonthSelection.move(monthCursor, -1)) }
+        b.nextMonth.setOnClickListener { chooseMonth(MonthSelection.move(monthCursor, 1)) }
+        b.billMonthPicker.setOnClickListener { MonthSelection.show(requireContext(), monthCursor, ::chooseMonth) }
         b.refreshBills.setColorSchemeColors(requireContext().ledgerColor(R.color.ledger_teal))
         b.refreshBills.setOnChildScrollUpCallback { _, _ -> b.transactionList.canScrollVertically(-1) }
         b.refreshBills.setOnRefreshListener {
@@ -111,6 +115,11 @@ class TransactionsFragment : Fragment() {
         }
         updateSelectionUi()
         model.transactionChangeSignal.observe(viewLifecycleOwner) { if (!selectionMode) refresh() }
+        arguments?.getLong("select_id", 0)?.takeIf { it > 0 && savedInstanceState == null }?.let { id ->
+            viewLifecycleOwner.lifecycleScope.launch {
+                repository.transaction(id)?.let { chooseMonth(MonthSelection.at(it.timestamp)) }
+            }
+        }
     }
 
     override fun onResume() { super.onResume(); if (binding != null && (!selectionMode || rows.isEmpty())) refresh() }
@@ -118,6 +127,8 @@ class TransactionsFragment : Fragment() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putLongArray("selected_ids", selectedIds.toLongArray())
         outState.putBoolean("selection_mode", selectionMode)
+        outState.putInt("month_year", monthCursor.year)
+        outState.putInt("month_number", monthCursor.month!!)
         filter.writeTo(outState)
         super.onSaveInstanceState(outState)
     }
@@ -214,10 +225,10 @@ class TransactionsFragment : Fragment() {
                 b.emptyTransactions.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
                 b.emptyTransactions.text = when {
                     pendingOnly -> "没有符合条件的待处理账单"
-                    filter.activeCount > 0 -> "没有找到匹配账单\n试试减少条件或更换关键词"
-                    else -> "还没有账单，点击“记一笔”开始"
+                    nonDateCount > 0 -> "没有找到匹配账单\n试试减少条件或更换关键词"
+                    else -> "这个月份还没有账单\n点击“记一笔”或切换月份"
                 }
-                b.resultCount.text = (if (hasMore) "已显示 ${rows.size} 笔" else "${rows.size} 笔") + " · 长按多选"
+                b.resultCount.text = (if (hasMore) "已显示 ${rows.size} 笔" else "${rows.size} 笔") + if (nonDateCount > 0) " · 筛选 $nonDateCount 项" else " · 长按多选"
                 updateSelectionUi()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
@@ -255,6 +266,7 @@ class TransactionsFragment : Fragment() {
             menu.findItem(R.id.action_pending).title = if (pendingOnly) "显示全部账单" else "待处理账单"
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
+                    R.id.action_clear_filters -> { filter = TransactionFilter(start = filter.start, end = filter.end); refresh() }
                     R.id.action_pending -> { filter = filter.copy(pendingOnly = !pendingOnly); refresh() }
                     R.id.action_import_screenshot -> pickScreenshot.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     R.id.action_import_screenshots -> pickScreenshots.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -270,25 +282,30 @@ class TransactionsFragment : Fragment() {
         }
     }
 
+    private val nonDateCount get() = filter.copy(start = 0, end = Long.MAX_VALUE).activeCount
+
+    private fun chooseMonth(month: StatisticsPeriod) {
+        if (month.year !in 1970..9999) return
+        monthCursor = month
+        filter = MonthSelection.apply(filter, month)
+        refresh()
+    }
+
     private fun updateSearchUi() {
         val b = binding ?: return
-        val applied = filter
-        b.filterSummary.visibility = if (applied.activeCount > 0) View.VISIBLE else View.GONE
-        b.recordsTitle.text = if (applied.activeCount > 0) "搜索结果" else "全部记录"
-        b.searchFilters.contentDescription = "搜索账单，已选 ${applied.activeCount} 项条件"
-        summaryJob?.cancel()
-        b.filterDescription.text = applied.description(emptyList(), emptyList())
-        if (applied.activeCount > 0) summaryJob = viewLifecycleOwner.lifecycleScope.launch {
-            val description = applied.description(repository.categoryList(), repository.tags())
-            b.filterDescription.text = description
-            b.filterDescription.contentDescription = "$description，点击修改搜索条件"
-        }
+        val exact = MonthSelection.from(filter)
+        if (exact != null) monthCursor = exact
+        val label = exact?.label() ?: if (filter.start == 0L && filter.end == Long.MAX_VALUE) "全部月份" else "自选日期"
+        b.billMonthLabel.text = "$label ▾"
+        b.billMonthPicker.contentDescription = "$label，点击选择年份和月份"
+        b.searchFilters.contentDescription = "搜索账单，已选 $nonDateCount 项筛选条件"
+        b.previousMonth.isEnabled = monthCursor.year > 1970 || monthCursor.month != 1
+        b.nextMonth.isEnabled = monthCursor.year < 9999 || monthCursor.month != 12
     }
 
     override fun onDestroyView() {
         queryGeneration++
         queryJob?.cancel()
-        summaryJob?.cancel()
         binding?.transactionList?.removeOnScrollListener(pagingScroll)
         binding?.transactionList?.adapter = null
         adapter = null

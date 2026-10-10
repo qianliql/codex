@@ -1,0 +1,12 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:paddingHorizontal="24dp" android:paddingVertical="12dp">
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+        <TextView style="@style/LedgerCaption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="年份" />
+        <NumberPicker android:id="@+id/yearPicker" android:layout_width="match_parent" android:layout_height="180dp" android:contentDescription="选择年份" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/monthColumn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+        <TextView style="@style/LedgerCaption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="月份" />
+        <NumberPicker android:id="@+id/monthPicker" android:layout_width="match_parent" android:layout_height="180dp" android:contentDescription="选择月份" />
+    </LinearLayout>
+</LinearLayout>

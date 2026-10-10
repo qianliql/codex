@@ -25,6 +25,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                     <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="选择分类" />
                     <com.google.android.material.chip.ChipGroup android:id="@+id/categoryChips" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" app:chipSpacingHorizontal="5dp" app:chipSpacingVertical="2dp" app:singleSelection="true" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/expandCategories" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="展开不常用分类 ▾" android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
             <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">

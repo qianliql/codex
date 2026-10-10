@@ -16,32 +16,39 @@ import java.util.Calendar
 class StatisticsFragment : Fragment() {
     private val model: StatisticsViewModel by viewModels()
     private var binding: FragmentStatisticsBinding? = null
-    private var latestTotals: MonthTotals? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
         FragmentStatisticsBinding.inflate(inflater, container, false).also { binding = it }.root
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val b = binding ?: return
+        if (savedInstanceState?.containsKey("stats_year") == true) model.choose(StatisticsPeriod(savedInstanceState.getInt("stats_year"), savedInstanceState.getInt("stats_month").takeIf { it != 0 }))
+        b.periodLabel.setOnClickListener { model.period.value?.let { period -> MonthSelection.show(requireContext(), period, model::choose) } }
         b.monthMode.setOnClickListener { model.switchMode(false) }
         b.yearMode.setOnClickListener { model.switchMode(true) }
         b.previousPeriod.setOnClickListener { model.move(-1) }
         b.nextPeriod.setOnClickListener { model.move(1) }
         model.period.observe(viewLifecycleOwner) { period ->
-            b.periodLabel.text = period.label()
+            b.periodLabel.text = "${period.label()} ▾"
             stylePeriodButton(b.monthMode, period.month != null)
             stylePeriodButton(b.yearMode, period.month == null)
             b.averageLabel.visibility = if (period.month == null) View.VISIBLE else View.GONE
             b.average.visibility = if (period.month == null) View.VISIBLE else View.GONE
             b.trendLabel.text = if (period.month == null) "每月实际支出" else "每日实际支出"
-            latestTotals?.let { updateTotals(it) }
+            val cached = model.totals.value
+            if (cached?.first == period) updateTotals(cached.second)
+            else {
+                b.netExpense.text = "…"
+                b.expense.text = "…"; b.refund.text = "…"; b.average.text = "…"
+                b.averageLabel.text = "月均实际支出 · 按有收支记录的月份"
+            }
+            b.periodLabel.contentDescription = "${period.label()}，点击选择${if (period.month == null) "年份" else "年份和月份"}"
         }
-        model.totals.observe(viewLifecycleOwner) {
-            latestTotals = it
-            updateTotals(it)
+        model.totals.observe(viewLifecycleOwner) { (period, totals) ->
+            if (model.period.value == period) updateTotals(totals)
         }
         model.categories.observe(viewLifecycleOwner) { totals ->
-            CategoryRows.show(b.categoryContainer, totals.map { it.label to it.amountCents }, "本期暂无支出", progress = true)
+            CategoryRows.show(b.categoryContainer, totals.map { it.label to it.amountCents }, "本期暂无支出", progress = true, iconKeys = totals.associate { it.label to it.iconKey })
         }
         model.payments.observe(viewLifecycleOwner) { totals ->
             CategoryRows.show(b.paymentContainer, totals.map { UiFormat.method(it.paymentMethod) to it.amountCents }, "本期暂无支出", progress = true)
@@ -54,10 +61,8 @@ class StatisticsFragment : Fragment() {
         b.expense.text = UiFormat.money(totals.expense)
         b.refund.text = UiFormat.money(totals.refund)
         b.netExpense.text = UiFormat.money(totals.expense - totals.refund)
-        val period = model.period.value ?: return
-        val current = Calendar.getInstance()
-        val months = if (period.year == current.get(Calendar.YEAR)) current.get(Calendar.MONTH) + 1 else 12
-        b.average.text = UiFormat.money((totals.expense - totals.refund) / months)
+        b.averageLabel.text = if (totals.recordedMonths == 0) "月均实际支出 · 暂无收支记录" else "月均实际支出 · 按 ${totals.recordedMonths} 个记账月份"
+        b.average.text = UiFormat.money(totals.averageExpense())
     }
 
     private fun stylePeriodButton(button: MaterialButton, selected: Boolean) {
@@ -66,5 +71,9 @@ class StatisticsFragment : Fragment() {
         button.setTextColor(requireContext().ledgerColor(if (selected) R.color.white else R.color.ledger_teal))
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        model.period.value?.let { outState.putInt("stats_year", it.year); outState.putInt("stats_month", it.month ?: 0) }
+        super.onSaveInstanceState(outState)
+    }
     override fun onDestroyView() { binding = null; super.onDestroyView() }
 }

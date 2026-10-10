@@ -23,6 +23,9 @@ data class Category(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val isSystem: Boolean = false,
+    @ColumnInfo(defaultValue = "1") val priority: Int = 1,
+    @ColumnInfo(defaultValue = "0") val sortOrder: Int = 0,
+    @ColumnInfo(defaultValue = "'auto'") val iconKey: String = "auto",
 )
 
 @Entity(tableName = "tags", indices = [Index(value = ["name"], unique = true)])
@@ -77,11 +80,14 @@ data class LedgerTransaction(
 data class TransactionRow(
     @Embedded val transaction: LedgerTransaction,
     @ColumnInfo(name = "categoryName") val categoryName: String?,
+    @ColumnInfo(name = "categoryIconKey") val categoryIconKey: String? = null,
 )
 
-data class MonthTotals(val expense: Long, val refund: Long)
+data class MonthTotals(val expense: Long, val refund: Long, val recordedMonths: Int = 0) {
+    fun averageExpense(): Long = if (recordedMonths > 0) (expense - refund) / recordedMonths else 0
+}
 
-data class CategoryTotal(val label: String, val amountCents: Long)
+data class CategoryTotal(val label: String, val amountCents: Long, val iconKey: String? = null)
 data class PaymentTotal(val paymentMethod: PaymentMethod, val amountCents: Long)
 data class TimeTotal(val period: String, val expense: Long, val refund: Long)
 data class TagTotal(val id: Long, val name: String, val expense: Long)

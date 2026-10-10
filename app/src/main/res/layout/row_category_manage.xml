@@ -1,10 +1,10 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:padding="16dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
         <ImageView android:id="@+id/categoryIcon" android:layout_width="44dp" android:layout_height="44dp" android:background="@drawable/bg_badge" android:padding="11dp" android:importantForAccessibility="no" android:src="@drawable/ic_tag" />
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginHorizontal="14dp" android:orientation="vertical">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginHorizontal="10dp" android:orientation="vertical">
             <TextView android:id="@+id/categoryName" style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" />
             <TextView android:id="@+id/categoryHint" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" />
         </LinearLayout>
-        <ImageView android:id="@+id/editIcon" android:layout_width="24dp" android:layout_height="24dp" android:importantForAccessibility="no" android:src="@drawable/ic_edit" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/editIcon" style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:padding="0dp" android:contentDescription="排序或删除分类" app:icon="@drawable/ic_more" app:iconSize="22dp" app:iconPadding="0dp" app:iconGravity="textStart" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

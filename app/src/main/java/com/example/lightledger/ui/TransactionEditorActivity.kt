@@ -25,6 +25,7 @@ class TransactionEditorActivity : LedgerActivity() {
     private lateinit var binding: ActivityTransactionEditorBinding
     private val repository by lazy { (application as LedgerApp).repository }
     private var categories: List<Category> = emptyList()
+    private var showOccasional = false
     private var existing: LedgerTransaction? = null
     private var tags: List<Tag> = emptyList()
     private val selectedTagIds = mutableSetOf<Long>()
@@ -42,6 +43,7 @@ class TransactionEditorActivity : LedgerActivity() {
         binding = ActivityTransactionEditorBinding.inflate(layoutInflater)
         setContentView(binding.root)
         SystemBarInsets.apply(binding.root)
+        binding.expandCategories.setOnClickListener { showOccasional = !showOccasional; updateCategoryVisibility() }
         binding.goBack.setOnClickListener { finish() }
         binding.moreDetails.setOnClickListener { showMoreDetails(binding.additionalDetails.visibility != View.VISIBLE) }
         binding.amount.doAfterTextChanged { binding.amountInput.error = null }
@@ -150,13 +152,20 @@ class TransactionEditorActivity : LedgerActivity() {
     private fun showCategoryChoices() {
         binding.categoryChips.removeAllViews()
         categoryChips.clear()
-        val standard = CategoryCatalog.primary.mapNotNull { name -> categories.firstOrNull { it.name == name } }
-        val custom = categories.filter { it.name != CategoryCatalog.unclassified && it.name !in CategoryCatalog.primary && it.name !in CategoryCatalog.legacy }
-        (standard + custom).distinctBy { it.id }.forEach(::addCategoryChip)
+        CategoryPriority.ordered(categories).filter { it.name != CategoryCatalog.unclassified }.forEach(::addCategoryChip)
+        updateCategoryVisibility()
+    }
+
+    private fun updateCategoryVisibility() {
+        val occasional = categories.filter { it.priority == CategoryPriority.OCCASIONAL && it.name != CategoryCatalog.unclassified }
+        occasional.forEach { category -> categoryChips[category.id]?.visibility = if (showOccasional) View.VISIBLE else View.GONE }
+        binding.expandCategories.visibility = if (occasional.isEmpty()) View.GONE else View.VISIBLE
+        binding.expandCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（${occasional.size}）▾"
     }
 
     private fun addCategoryChip(category: Category) {
         val chip = choiceChip(category.name).apply {
+            chipIcon = androidx.appcompat.content.res.AppCompatResources.getDrawable(this@TransactionEditorActivity, CategoryIcons.icon(category.name, category.iconKey))
             setOnCheckedChangeListener { _, checked ->
                 if (checked) selectedCategoryId = category.id
                 else if (selectedCategoryId == category.id) selectedCategoryId = null
@@ -208,6 +217,7 @@ class TransactionEditorActivity : LedgerActivity() {
             return
         }
         if (categoryId !in categoryChips) categories.firstOrNull { it.id == categoryId }?.let(::addCategoryChip)
+        if (categories.any { it.id == categoryId && it.priority == CategoryPriority.OCCASIONAL }) { showOccasional = true; updateCategoryVisibility() }
         categoryChips[categoryId]?.isChecked = true
     }
 

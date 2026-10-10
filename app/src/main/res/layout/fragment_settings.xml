@@ -15,32 +15,17 @@
         <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="数据管理" />
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp">
-                <com.google.android.material.button.MaterialButton android:id="@+id/exportCsv" app:icon="@drawable/ic_download" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="导出账单 CSV" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/exportBackup" app:icon="@drawable/ic_shield" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="导出本地备份" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/exportBackup" app:icon="@drawable/ic_shield" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="备份账本" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/importBackup" app:icon="@drawable/ic_restore" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="从备份恢复" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/importHistory" app:icon="@drawable/ic_download" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="追加导入历史账单" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="自动记账" />
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                 <TextView android:id="@+id/notificationStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="通知自动记账：未开启" android:textColor="?attr/colorOnSurface" android:textSize="15sp" android:textStyle="bold" />
-                <TextView android:id="@+id/notificationDiagnostic" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="正在检查监听状态…" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/refreshNotificationDiagnostic" style="@style/LedgerTextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="刷新诊断" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/notificationSettings" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="开启或管理自动记账权限" />
                 <TextView android:id="@+id/quickNotificationStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="快捷分类通知：未开启" android:textColor="?attr/colorOnSurface" android:textSize="15sp" android:textStyle="bold" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/quickNotificationSettings" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="快捷分类通知设置" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-        <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="漏记检测" />
-        <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/captureSamples" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="保存支付相关通知样本" android:textSize="14sp" android:textColor="?attr/colorOnSurface" />
-                <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="有漏记时开启。样本可能含金额、姓名和通知文字，仅在本机保存，可随时清空。" />
-                <TextView android:id="@+id/sampleStatus" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="样本记录未开启" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/inspectNotifications" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="检测当前通知" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/exportDetection" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="导出检测报告" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/clearSamples" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="清空通知样本" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:gravity="center" android:text="轻账本 · 本机存储，离线使用" />

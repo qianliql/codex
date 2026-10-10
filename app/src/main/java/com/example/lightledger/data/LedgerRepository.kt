@@ -60,8 +60,10 @@ class LedgerRepository(private val dao: LedgerDao) {
         dao.classifyExpense(transactionId, categoryId, System.currentTimeMillis()) == 1
     suspend fun delete(transaction: LedgerTransaction) = dao.deleteTransactionSafely(transaction)
     suspend fun deleteTransactions(ids: List<Long>): Int = dao.deleteTransactionsSafely(ids)
-    suspend fun addCategory(name: String) = dao.insertCategory(Category(name = name.trim()))
-    suspend fun renameCategory(category: Category, name: String) = dao.updateCategory(category.copy(name = name.trim()))
+    suspend fun addCategory(name: String) = dao.saveCategoryPreferences(Category(name = name.trim(), priority = CategoryPriority.OCCASIONAL))
+    suspend fun renameCategory(category: Category, name: String) = dao.saveCategoryPreferences(category.copy(name = name.trim()))
+    suspend fun saveCategoryPreferences(category: Category) = dao.saveCategoryPreferences(category)
+    suspend fun moveCategory(id: Long, delta: Int) = dao.moveCategory(id, delta)
     suspend fun deleteCategory(category: Category) {
         require(!category.isSystem) { "系统分类不能删除" }
         dao.removeCategory(category)

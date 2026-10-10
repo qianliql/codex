@@ -19,21 +19,23 @@ import java.util.Locale
 /** One draft: cancelling the page never alters the result list's applied filters. */
 internal class TransactionSearchForm(
     private val b: ActivityTransactionSearchBinding,
-    initial: TransactionFilter, categories: List<Category>, tags: List<Tag>,
+    initial: TransactionFilter, private val categories: List<Category>, tags: List<Tag>,
     private val chooseDate: (Long, (Long) -> Unit) -> Unit,
     private val apply: (TransactionFilter) -> Unit,
 ) {
     private var draft = initial
     private var rendering = false
+    private var showOccasional = categories.any { it.id == initial.categoryId && it.priority == CategoryPriority.OCCASIONAL }
     private val tagOptions = listOf(0L to "不限标签") + tags.map { it.id to it.name }
     init {
         chips(b.datePresets, SearchDatePreset.entries.map { it to it.label }, preset()) { selected ->
             selected.range()?.let { (start, end) -> draft = draft.copy(start = start, end = end) }
             renderDates(); updateCount()
         }
-        chips(b.categoryChoices, listOf(-1L to "不限", 0L to "未分类") + categories.filter { it.name != "未分类" }.map { it.id to it.name }, draft.categoryId, true) {
+        chips(b.categoryChoices, listOf(-1L to "不限", 0L to "未分类") + CategoryPriority.ordered(categories).filter { it.name != "未分类" }.map { it.id to it.name }, draft.categoryId, true) {
             draft = draft.copy(categoryId = it); updateCount()
         }
+        b.expandSearchCategories.setOnClickListener { showOccasional = !showOccasional; renderCategoryVisibility() }
         chips(b.typeChoices, listOf("" to "不限") + TransactionType.entries.map { it.name to UiFormat.type(it) }, draft.type) { draft = draft.copy(type = it); updateCount() }
         chips(b.methodChoices, listOf("" to "不限") + PaymentMethod.entries.map { it.name to UiFormat.method(it) }, draft.method) { draft = draft.copy(method = it); updateCount() }
         chips(b.sourceChoices, listOf("" to "不限") + TransactionSource.entries.map { it.name to TransactionFilter.sourceLabel(it.name) }, draft.source) { draft = draft.copy(source = it); updateCount() }
@@ -78,7 +80,13 @@ internal class TransactionSearchForm(
         b.tagChoice.setText(tagOptions.firstOrNull { it.first == draft.tagId }?.second ?: "指定标签", false)
         b.pendingOnly.isChecked = draft.pendingOnly
         more(draft.tagId != 0L || draft.source.isNotBlank() || draft.pendingOnly)
-        renderDates(); rendering = false; updateCount()
+        renderDates(); renderCategoryVisibility(); rendering = false; updateCount()
+    }
+    private fun renderCategoryVisibility() {
+        val ids = categories.filter { it.priority == CategoryPriority.OCCASIONAL && it.name != CategoryCatalog.unclassified }.map { it.id }.toSet()
+        b.categoryChoices.children.filterIsInstance<Chip>().filter { it.tag in ids }.forEach { it.visibility = if (showOccasional) View.VISIBLE else View.GONE }
+        b.expandSearchCategories.visibility = if (ids.isEmpty()) View.GONE else View.VISIBLE
+        b.expandSearchCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（${ids.size}）▾"
     }
     private fun select(group: ChipGroup, value: Any) {
         val wasRendering = rendering; rendering = true
@@ -98,7 +106,7 @@ internal class TransactionSearchForm(
                 chipStrokeColor = ColorStateList.valueOf(context.ledgerColor(R.color.ledger_border)); chipStrokeWidth = density
                 setEnsureMinTouchTargetSize(true); minHeight = (48 * density).toInt()
                 if (icons) {
-                    chipIcon = androidx.appcompat.content.res.AppCompatResources.getDrawable(context, if (label == "不限") R.drawable.ic_grid else CategoryIcons.icon(label))
+                    chipIcon = androidx.appcompat.content.res.AppCompatResources.getDrawable(context, if (label == "不限") R.drawable.ic_grid else CategoryIcons.icon(label, categories.firstOrNull { it.name == label }?.iconKey))
                     chipIconTint = ColorStateList.valueOf(context.ledgerColor(R.color.ledger_teal)); chipIconSize = 18 * density
                 }
                 isChecked = value == selected

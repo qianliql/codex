@@ -143,7 +143,7 @@ class LayoutCompatibilityTest {
         RuntimeEnvironment.setFontScale(1.3f)
         val layouts = listOf(R.layout.fragment_home, R.layout.fragment_transactions, R.layout.fragment_statistics,
             R.layout.fragment_settings, R.layout.activity_transaction_editor, R.layout.activity_category,
-            R.layout.dialog_category_name,
+            R.layout.dialog_category_name, R.layout.dialog_category_preferences,
             R.layout.activity_tags, R.layout.activity_merchant_rules, R.layout.activity_batch_import)
         layouts.forEach { layout ->
             val controller = Robolectric.buildActivity(PreviewActivity::class.java).setup()
@@ -178,10 +178,7 @@ class LayoutCompatibilityTest {
                 listOf("normal", "search", "selection").forEach { mode ->
                     root.findViewById<View>(R.id.normalActions).visibility = if (mode == "selection") View.GONE else View.VISIBLE
                     root.findViewById<View>(R.id.selectionBar).visibility = if (mode == "selection") View.VISIBLE else View.GONE
-                    root.findViewById<View>(R.id.filterSummary).visibility = if (mode == "search") View.VISIBLE else View.GONE
-                    root.findViewById<TextView>(R.id.filterDescription).text = "午餐 · 2026年10月 · 微信 · 正餐"
-                    root.findViewById<TextView>(R.id.recordsTitle).text = if (mode == "search") "搜索结果" else "全部记录"
-                    root.findViewById<TextView>(R.id.resultCount).text = "已显示 100 笔 · 长按多选"
+                    root.findViewById<TextView>(R.id.resultCount).text = if (mode == "search") "100 笔 · 筛选 3 项" else "100 笔 · 长按多选"
                     shadowOf(Looper.getMainLooper()).idle()
                     ViewCompat.dispatchApplyWindowInsets(root, bars(24, 24))
                     measure(root)
@@ -190,7 +187,7 @@ class LayoutCompatibilityTest {
                     // Also include the bottom navigation in the denominator, excluding system bars.
                     val usable = root.height - root.paddingTop - root.paddingBottom
                     assertTrue("$name/$mode: list takes at least two thirds including navigation", list.height * 3 >= usable * 2)
-                    if (mode != "selection") listOf(R.id.searchFilters, R.id.addTransaction, R.id.moreActions).forEach { id ->
+                    if (mode != "selection") listOf(R.id.searchFilters, R.id.addTransaction, R.id.moreActions, R.id.previousMonth, R.id.nextMonth, R.id.billMonthPicker).forEach { id ->
                         val button = root.findViewById<View>(id)
                         val touch = (48 * root.resources.displayMetrics.density).toInt()
                         assertTrue("toolbar touch target", button.height >= touch && button.width >= touch)
@@ -262,7 +259,8 @@ class LayoutCompatibilityTest {
         root.findViewById<LinearLayout>(R.id.categorySummary)?.let {
             CategoryRows.show(it, listOf("正餐" to 82650L, "日用" to 29900L, "娱乐" to 16100L), "")
         }
-        text(R.id.periodLabel, "2026年10月")
+        text(R.id.billMonthLabel, "2026年10月 ▾")
+        text(R.id.periodLabel, "2026年10月 ▾")
         text(R.id.netExpense, "¥1,286.50")
         text(R.id.expense, "¥1,386.50")
         text(R.id.refund, "¥100.00")
@@ -289,7 +287,6 @@ class LayoutCompatibilityTest {
         root.findViewById<SpendingBarChartView>(R.id.spendingChart)?.setData(StatisticsPeriod(2026, 10),
             listOf(TimeTotal("1", 15800, 0), TimeTotal("3", 3800, 0), TimeTotal("5", 21000, 0), TimeTotal("9", 9600, 0)))
         text(R.id.notificationStatus, "通知自动记账：已开启")
-        text(R.id.notificationDiagnostic, "监听已连接，支付通知会自动记录。")
         text(R.id.quickNotificationStatus, "快捷分类通知：已开启")
         val listId = if (layout == R.layout.fragment_home) R.id.recentList else R.id.transactionList
         root.findViewById<RecyclerView>(listId)?.let { list ->
@@ -312,7 +309,7 @@ class LayoutCompatibilityTest {
         val directory = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
-        val file = File(directory, "LightLedger-0.5.5-$name.png")
+        val file = File(directory, "LightLedger-0.6.0-$name.png")
         file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()

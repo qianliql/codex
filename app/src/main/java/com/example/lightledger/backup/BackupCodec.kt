@@ -4,15 +4,15 @@ import com.example.lightledger.data.*
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Backup v1 is self-contained; parsing and validation finish before any database row is replaced. */
+/** Backup v2 is self-contained; parsing and validation finish before any database row is replaced. */
 object BackupCodec {
     private fun JSONObject.putNullable(key: String, value: String?) { put(key, value ?: JSONObject.NULL) }
     private fun JSONObject.putNullable(key: String, value: Long?) { put(key, value ?: JSONObject.NULL) }
 
     fun encode(data: LedgerSnapshot): String = JSONObject().apply {
-        put("schemaVersion", 1)
+        put("schemaVersion", 2)
         put("categories", JSONArray().apply { data.categories.forEach { c -> put(JSONObject().apply {
-            put("id", c.id); put("name", c.name); put("isSystem", c.isSystem)
+            put("id", c.id); put("name", c.name); put("isSystem", c.isSystem); put("priority", c.priority); put("sortOrder", c.sortOrder); put("iconKey", c.iconKey)
         }) } })
         put("transactions", JSONArray().apply { data.transactions.forEach { t -> put(JSONObject().apply {
             put("id", t.id); put("amountCents", t.amountCents); put("type", t.type.name)
@@ -34,7 +34,7 @@ object BackupCodec {
 
     fun decode(json: String): LedgerSnapshot {
         val root = JSONObject(json)
-        require(root.getInt("schemaVersion") == 1) { "不支持的备份版本" }
+        require(root.getInt("schemaVersion") in 1..2) { "不支持的备份版本" }
         fun <T> rows(key: String, convert: (JSONObject) -> T): List<T> {
             val array = root.getJSONArray(key)
             return (0 until array.length()).map { convert(array.getJSONObject(it)) }
@@ -42,7 +42,7 @@ object BackupCodec {
         fun JSONObject.nullableString(key: String): String? = if (isNull(key)) null else getString(key)
         fun JSONObject.nullableLong(key: String): Long? = if (isNull(key)) null else getLong(key)
         val snapshot = LedgerSnapshot(
-            categories = rows("categories") { Category(it.getLong("id"), it.getString("name"), it.getBoolean("isSystem")) },
+            categories = rows("categories") { Category(it.getLong("id"), it.getString("name"), it.getBoolean("isSystem"), it.optInt("priority", CategoryPriority.defaultFor(it.getString("name"))), it.optInt("sortOrder", CategoryCatalog.primary.indexOf(it.getString("name")).takeIf { n -> n >= 0 } ?: 100), it.optString("iconKey", "auto")) },
             transactions = rows("transactions") { t -> LedgerTransaction(
                 id = t.getLong("id"), amountCents = t.getLong("amountCents"), type = TransactionType.valueOf(t.getString("type")),
                 merchant = t.nullableString("merchant"), categoryId = t.nullableLong("categoryId"),
@@ -57,7 +57,7 @@ object BackupCodec {
             settings = rows("settings") { AppSetting(it.getString("key"), it.getString("value")) },
         )
         validate(snapshot)
-        return snapshot
+        return CategoryNormalization.withoutHousehold(snapshot)
     }
 
     private fun validate(data: LedgerSnapshot) {
@@ -65,6 +65,8 @@ object BackupCodec {
         val categoryIds = data.categories.map { it.id }
         val transactionIds = data.transactions.map { it.id }
         val tagIds = data.tags.map { it.id }
+        require(data.categories.all { it.priority in 0..2 }) { "分类优先级无效" }
+        require(listOf(0, 1).all { p -> data.categories.count { it.priority == p && it.name != CategoryCatalog.unclassified } <= CategoryPriority.limit(p) }) { "常用分类数量超过限制" }
         require(data.categories.isNotEmpty() && data.categories.any { it.name == "未分类" }) { "备份缺少基础分类" }
         require(unique(categoryIds) && unique(transactionIds) && unique(tagIds) &&
             unique(data.merchantRules.map { it.id }) && unique(data.settings.map { it.key })) { "备份含重复 ID" }

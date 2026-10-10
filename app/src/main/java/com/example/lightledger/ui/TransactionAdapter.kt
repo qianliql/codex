@@ -40,7 +40,7 @@ class TransactionAdapter(private val onLongClick: ((Long) -> Unit)? = null, priv
         val category = if (transaction.classificationStatus == ClassificationStatus.NEED_CONFIRM) "待确认" else row.categoryName ?: "未分类"
         holder.binding.subtitle.text = "$category · ${UiFormat.method(transaction.paymentMethod)} · ${UiFormat.type(transaction.type)}"
         holder.binding.timestamp.text = java.text.SimpleDateFormat("yyyy.MM.dd HH:mm", java.util.Locale.CHINA).format(java.util.Date(transaction.timestamp))
-        CategoryIcons.apply(holder.binding.categoryIcon, row.categoryName ?: "未分类")
+        CategoryIcons.apply(holder.binding.categoryIcon, row.categoryName ?: "未分类", row.categoryIconKey)
         holder.binding.selectionCheck.visibility = if (selecting) android.view.View.VISIBLE else android.view.View.GONE
         holder.binding.selectionCheck.isChecked = transaction.id in selectedIds
         holder.binding.root.isCheckable = selecting

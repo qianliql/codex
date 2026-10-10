@@ -19,8 +19,9 @@ interface LedgerDao {
             if (transactionForKey(key) != null) {
                 skipped++
             } else {
-                val categoryId = categoryIds.getOrPut(row.category) { 0L }.let { existing ->
-                    if (existing > 0) existing else insertCategory(Category(name = row.category)).also { categoryIds[row.category] = it }
+                val categoryName = if (row.category == "家居") "其他" else row.category
+                val categoryId = categoryIds.getOrPut(categoryName) { 0L }.let { existing ->
+                    if (existing > 0) existing else insertCategory(Category(name = categoryName, priority = CategoryPriority.defaultFor(categoryName))).also { categoryIds[categoryName] = it }
                 }
                 insertTransaction(LedgerTransaction(amountCents = row.amountCents, type = row.type, merchant = null,
                     categoryId = categoryId, paymentMethod = PaymentMethod.OTHER, timestamp = row.timestamp,
@@ -32,14 +33,37 @@ interface LedgerDao {
         }
         return com.example.lightledger.history.HistoryImportResult(imported, skipped, addedCents)
     }
-    @Query("SELECT * FROM categories ORDER BY CASE name WHEN '正餐' THEN 0 WHEN '零食' THEN 1 WHEN '娱乐' THEN 2 WHEN '日用' THEN 3 WHEN '数码' THEN 4 WHEN '洗澡' THEN 5 WHEN '教育' THEN 6 WHEN '其他' THEN 7 WHEN '未分类' THEN 999 ELSE 100 END, id")
+    @Query("SELECT * FROM categories ORDER BY priority, sortOrder, id")
     fun categories(): LiveData<List<Category>>
 
-    @Query("SELECT * FROM categories ORDER BY CASE name WHEN '正餐' THEN 0 WHEN '零食' THEN 1 WHEN '娱乐' THEN 2 WHEN '日用' THEN 3 WHEN '数码' THEN 4 WHEN '洗澡' THEN 5 WHEN '教育' THEN 6 WHEN '其他' THEN 7 WHEN '未分类' THEN 999 ELSE 100 END, id")
+    @Query("SELECT * FROM categories ORDER BY priority, sortOrder, id")
     suspend fun categoryList(): List<Category>
 
     @Insert suspend fun insertCategory(category: Category): Long
     @Update suspend fun updateCategory(category: Category)
+    @Transaction suspend fun saveCategoryPreferences(category: Category) {
+        require(category.name.isNotBlank() && category.name != "家居") { "请使用其他分类名称" }
+        require(category.priority in 0..2) { "分类优先级无效" }
+        val existing = categoryList()
+        require(existing.none { it.name == category.name && it.id != category.id }) { "这个名称已存在，请换一个" }
+        require(existing.count { it.id != category.id && it.name != CategoryCatalog.unclassified && it.priority == category.priority } < CategoryPriority.limit(category.priority)) {
+            "${CategoryPriority.label(category.priority)}最多${CategoryPriority.limit(category.priority)}个，请先把已有分类移到其他分组"
+        }
+        val previous = existing.firstOrNull { it.id == category.id }
+        val order = if (previous?.priority == category.priority) previous.sortOrder
+            else (existing.filter { it.priority == category.priority }.maxOfOrNull { it.sortOrder } ?: -1) + 1
+        if (category.id == 0L) insertCategory(category.copy(sortOrder = order)) else updateCategory(category.copy(sortOrder = order))
+    }
+    @Transaction suspend fun moveCategory(id: Long, delta: Int) {
+        val all = categoryList()
+        val selected = all.firstOrNull { it.id == id } ?: return
+        val group = CategoryPriority.ordered(all).filter { it.priority == selected.priority && it.name != CategoryCatalog.unclassified }.toMutableList()
+        val from = group.indexOfFirst { it.id == id }
+        val to = from + delta
+        if (from < 0 || to !in group.indices) return
+        java.util.Collections.swap(group, from, to)
+        group.forEachIndexed { index, category -> updateCategory(category.copy(sortOrder = index)) }
+    }
     @Delete suspend fun deleteCategory(category: Category)
     @Query("UPDATE transactions SET categoryId = NULL, classificationStatus = 'UNCLASSIFIED', updatedAt = :now WHERE categoryId = :categoryId")
     suspend fun unclassifyCategoryTransactions(categoryId: Long, now: Long)
@@ -48,16 +72,16 @@ interface LedgerDao {
         deleteCategory(category)
     }
 
-    @Query("SELECT t.*, c.name AS categoryName FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id ORDER BY t.timestamp DESC, t.id DESC LIMIT :limit")
+    @Query("SELECT t.*, c.name AS categoryName, c.iconKey AS categoryIconKey FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id ORDER BY t.timestamp DESC, t.id DESC LIMIT :limit")
     fun recentTransactions(limit: Int): LiveData<List<TransactionRow>>
 
-    @Query("SELECT t.*, c.name AS categoryName FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id ORDER BY t.timestamp DESC, t.id DESC")
+    @Query("SELECT t.*, c.name AS categoryName, c.iconKey AS categoryIconKey FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id ORDER BY t.timestamp DESC, t.id DESC")
     fun allTransactions(): LiveData<List<TransactionRow>>
 
     @Query("SELECT COUNT(*) FROM transactions")
     fun transactionChangeSignal(): LiveData<Int>
 
-    @Query("""SELECT t.*, c.name AS categoryName FROM transactions t
+    @Query("""SELECT t.*, c.name AS categoryName, c.iconKey AS categoryIconKey FROM transactions t
         LEFT JOIN categories c ON t.categoryId = c.id
         WHERE (:search = '' OR instr(COALESCE(t.merchant, ''), :search) > 0 OR instr(COALESCE(t.note, ''), :search) > 0)
         AND t.timestamp >= :start AND t.timestamp < :end
@@ -133,7 +157,8 @@ interface LedgerDao {
     @Insert suspend fun insertTags(values: List<Tag>)
     @Insert suspend fun insertRules(values: List<MerchantRule>)
     @Insert suspend fun insertSettings(values: List<AppSetting>)
-    @Transaction suspend fun replaceAll(snapshot: LedgerSnapshot) {
+    @Transaction suspend fun replaceAll(original: LedgerSnapshot) {
+        val snapshot = CategoryNormalization.withoutHousehold(original)
         clearAllTransactionTags()
         clearAllMerchantRules()
         clearAllTransactions()
@@ -149,7 +174,11 @@ interface LedgerDao {
         val names = snapshot.categories.map { it.name }.toSet()
         (CategoryCatalog.primary + CategoryCatalog.unclassified)
             .filterNot { it in names }
-            .forEach { insertCategory(Category(name = it, isSystem = true)) }
+            .forEach { name ->
+                val preferred = CategoryPriority.defaultFor(name)
+                val available = categoryList().count { it.priority == preferred && it.name != CategoryCatalog.unclassified } < CategoryPriority.limit(preferred)
+                insertCategory(Category(name = name, isSystem = true, priority = if (available) preferred else CategoryPriority.OCCASIONAL, sortOrder = CategoryCatalog.primary.indexOf(name)))
+            }
     }
 
     @Insert suspend fun insertTransaction(transaction: LedgerTransaction): Long
@@ -177,10 +206,10 @@ interface LedgerDao {
         return targets.chunked(400).sumOf { deleteTransactionsByIds(it) }
     }
 
-    @Query("SELECT COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amountCents ELSE 0 END),0) AS expense, COALESCE(SUM(CASE WHEN type = 'REFUND' THEN amountCents ELSE 0 END),0) AS refund FROM transactions WHERE timestamp >= :start AND timestamp < :end")
+    @Query("SELECT COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amountCents ELSE 0 END),0) AS expense, COALESCE(SUM(CASE WHEN type = 'REFUND' THEN amountCents ELSE 0 END),0) AS refund, COUNT(DISTINCT CASE WHEN type IN ('EXPENSE','INCOME') THEN strftime('%Y-%m', timestamp / 1000, 'unixepoch', 'localtime') END) AS recordedMonths FROM transactions WHERE timestamp >= :start AND timestamp < :end")
     fun totals(start: Long, end: Long): LiveData<MonthTotals>
 
-    @Query("SELECT COALESCE(c.name, '未分类') AS label, SUM(t.amountCents) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' GROUP BY t.categoryId ORDER BY amountCents DESC")
+    @Query("SELECT COALESCE(c.name, '未分类') AS label, c.iconKey AS iconKey, SUM(t.amountCents) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' GROUP BY t.categoryId ORDER BY amountCents DESC")
     fun categoryTotals(start: Long, end: Long): LiveData<List<CategoryTotal>>
 
     @Query("SELECT paymentMethod, SUM(amountCents) AS amountCents FROM transactions WHERE timestamp >= :start AND timestamp < :end AND type = 'EXPENSE' GROUP BY paymentMethod ORDER BY amountCents DESC")

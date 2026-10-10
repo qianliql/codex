@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [LedgerTransaction::class, Category::class, Tag::class, TransactionTagCrossRef::class, MerchantRule::class, AppSetting::class], version = 6, exportSchema = true)
+@Database(entities = [LedgerTransaction::class, Category::class, Tag::class, TransactionTagCrossRef::class, MerchantRule::class, AppSetting::class], version = 7, exportSchema = true)
 @TypeConverters(LedgerConverters::class)
 abstract class LedgerDatabase : RoomDatabase() {
     abstract fun dao(): LedgerDao
@@ -51,16 +51,31 @@ abstract class LedgerDatabase : RoomDatabase() {
                     }
             }
         }
+        internal val migration6To7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE categories ADD COLUMN priority INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE categories ADD COLUMN sortOrder INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE categories ADD COLUMN iconKey TEXT NOT NULL DEFAULT 'auto'")
+                db.execSQL("INSERT OR IGNORE INTO categories(name,isSystem) VALUES('其他',1)")
+                db.execSQL("UPDATE transactions SET categoryId=(SELECT id FROM categories WHERE name='其他') WHERE categoryId IN (SELECT id FROM categories WHERE name='家居')")
+                db.execSQL("UPDATE merchant_rules SET categoryId=(SELECT id FROM categories WHERE name='其他') WHERE categoryId IN (SELECT id FROM categories WHERE name='家居')")
+                db.execSQL("DELETE FROM categories WHERE name='家居'")
+                db.execSQL("UPDATE categories SET priority=2,sortOrder=id")
+                CategoryCatalog.primary.forEachIndexed { index, name ->
+                    db.execSQL("UPDATE categories SET priority=?,sortOrder=? WHERE name=?", arrayOf<Any>(CategoryPriority.defaultFor(name), index, name))
+                }
+            }
+        }
         @Volatile private var instance: LedgerDatabase? = null
         fun get(context: Context): LedgerDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, "ledger.db")
-                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6)
+                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6, migration6To7)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
                         (CategoryCatalog.primary + CategoryCatalog.unclassified)
-                            .forEach { name ->
-                                db.execSQL("INSERT INTO categories(name, isSystem) VALUES(?, 1)", arrayOf(name))
+                            .forEachIndexed { index, name ->
+                                db.execSQL("INSERT INTO categories(name, isSystem, priority, sortOrder, iconKey) VALUES(?, 1, ?, ?, 'auto')", arrayOf<Any>(name, CategoryPriority.defaultFor(name), index))
                             }
                     }
                 }).build().also { instance = it }

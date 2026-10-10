@@ -31,7 +31,7 @@ class TransactionsPagingTest {
         val db = LedgerDatabase.get(RuntimeEnvironment.getApplication())
         runBlocking {
             db.dao().insertTransactions((1L..207L).map { id ->
-                LedgerTransaction(id = id, amountCents = id * 100, timestamp = id,
+                LedgerTransaction(id = id, amountCents = id * 100, timestamp = MonthSelection.at().bounds().first + id,
                     type = TransactionType.EXPENSE, merchant = "示例商户 $id",
                     classificationStatus = if (id <= 7) ClassificationStatus.NEED_CONFIRM else ClassificationStatus.CLASSIFIED)
             })
@@ -88,12 +88,12 @@ class TransactionsPagingTest {
             moreAction(R.id.action_pending)
             awaitCount(7)
             assertEquals((7L downTo 1L).toList(), adapter.currentList.map { it.transaction.id })
-            assertEquals(View.VISIBLE, frame.findViewById<View>(R.id.filterSummary).visibility)
+            assertTrue(frame.findViewById<TextView>(R.id.resultCount).text.toString().contains("筛选 1 项"))
             moreAction(R.id.action_refresh_bills)
             awaitCount(7)
-            frame.findViewById<View>(R.id.clearFilters).performClick()
+            moreAction(R.id.action_clear_filters)
             awaitCount(100)
-            assertEquals(View.GONE, frame.findViewById<View>(R.id.filterSummary).visibility)
+            assertFalse(frame.findViewById<TextView>(R.id.resultCount).text.toString().contains("筛选"))
             // None of the UI actions write or delete records.
             assertEquals(207, runBlocking { db.dao().allTransactionsOnce().size })
         } finally { controller.pause().stop().destroy(); db.close() }

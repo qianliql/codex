@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.lightledger.data.Category
+import com.example.lightledger.data.CategoryPriority
 import com.example.lightledger.ui.TransactionEditorActivity
 import com.example.lightledger.ui.UiFormat
 
@@ -47,8 +48,7 @@ object QuickClassificationManager {
             .setAutoCancel(true)
             .setContentIntent(openIntent)
 
-        listOf("正餐", "零食", "日用").forEach { name ->
-            val category = categories.firstOrNull { it.name == name } ?: return@forEach
+        CategoryPriority.notification(categories).forEach { category ->
             val action = Intent(context, QuickCategoryReceiver::class.java).apply {
                 setAction(ACTION_CLASSIFY)
                 data = Uri.parse("lightledger://classify/$transactionId/${category.id}")
@@ -57,9 +57,8 @@ object QuickClassificationManager {
             }
             val pending = PendingIntent.getBroadcast(context, 0, action,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            notification.addAction(0, name, pending)
+            notification.addAction(com.example.lightledger.ui.CategoryIcons.icon(category.name, category.iconKey), category.name, pending)
         }
-        notification.addAction(0, "更多", openIntent)
         try { manager.notify(notificationId(transactionId), notification.build()) }
         catch (_: SecurityException) { /* Permission may have been revoked after the check. */ }
     }

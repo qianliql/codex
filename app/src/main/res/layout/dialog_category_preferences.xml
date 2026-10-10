@@ -1,0 +1,17 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:fillViewport="false">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="24dp" android:paddingVertical="12dp">
+        <com.google.android.material.textfield.TextInputLayout android:id="@+id/nameInput" style="@style/LedgerInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="分类名称" app:endIconMode="clear_text">
+            <com.google.android.material.textfield.TextInputEditText android:id="@+id/categoryName" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:imeOptions="actionDone" />
+        </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.button.MaterialButton android:id="@+id/chooseIcon" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="start|center_vertical" android:text="选择图标" app:icon="@drawable/ic_other" />
+        <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="分类优先级" />
+        <RadioGroup android:id="@+id/priorityChoices" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="6dp">
+            <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/notificationPriority" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="通知栏 · 最多 3 个" android:textSize="14sp" />
+            <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/commonPriority" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="常用 · 最多 8 个" android:textSize="14sp" />
+            <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/occasionalPriority" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="不常用 · 默认收起" android:textSize="14sp" />
+        </RadioGroup>
+        <TextView android:id="@+id/categoryError" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="?attr/colorError" android:visibility="gone" />
+        <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="通知栏分类也会显示在记账页。历史账单和商户规则会同步使用新名称。" />
+    </LinearLayout>
+</ScrollView>

@@ -32,7 +32,6 @@ class PaymentNotificationService : NotificationListenerService() {
         super.onListenerConnected()
         isConnected = true
         current = this
-        NotificationTrace.connection(this, true)
         runCatching {
             activeNotifications.orEmpty()
                 .filter { it.packageName == "com.tencent.mm" || it.packageName == "com.eg.android.AlipayGphone" }
@@ -43,7 +42,6 @@ class PaymentNotificationService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         isConnected = false
         current = null
-        NotificationTrace.connection(this, false)
         super.onListenerDisconnected()
         runCatching { NotificationListenerService.requestRebind(ComponentName(this, PaymentNotificationService::class.java)) }
     }
@@ -52,10 +50,8 @@ class PaymentNotificationService : NotificationListenerService() {
         if (sbn == null || sbn.packageName !in setOf("com.tencent.mm", "com.eg.android.AlipayGphone")) return
         NotificationDiagnostics.record(this, sbn.packageName, "已收到，正在识别")
         val notification = sbn.notification ?: return
-        val traceId = NotificationTrace.received(this, sbn)
         fun outcome(result: String) {
             NotificationDiagnostics.record(this, sbn.packageName, result)
-            NotificationTrace.result(this, traceId, result)
         }
         if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) {
             outcome("汇总通知，已跳过")
@@ -75,7 +71,6 @@ class PaymentNotificationService : NotificationListenerService() {
             return
         }
         val keyInput = "${sbn.packageName}|${sbn.key}|${sbn.postTime}"
-        NotificationTrace.result(this, traceId, "已识别，等待保存", parsed.type.name, parsed.amountCents)
         val key = MessageDigest.getInstance("SHA-256").digest(keyInput.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }
         val status = when {

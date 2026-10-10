@@ -90,7 +90,7 @@ class HomeFragment : Fragment() {
         b.monthExpense.text = if (hidden) "¥****" else UiFormat.money(monthExpense - monthRefund)
         b.monthDetail.text = if (hidden) "支出 ¥**** · 退款 ¥****" else "支出 ${UiFormat.money(monthExpense)} · 退款 ${UiFormat.money(monthRefund)}"
         b.todayExpense.text = if (hidden) "¥****" else UiFormat.money(todayExpense)
-        CategoryRows.show(b.categorySummary, categories.take(5).map { it.label to it.amountCents }, "本月暂无支出", hidden)
+        CategoryRows.show(b.categorySummary, categories.take(5).map { it.label to it.amountCents }, "本月暂无支出", hidden, iconKeys = categories.associate { it.label to it.iconKey })
         recentAdapter?.hideAmounts = hidden
     }
     private fun openTab(id: Int) {

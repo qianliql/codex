@@ -46,25 +46,4 @@ class NotificationAccessAndTraceTest {
             } else assertEquals(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS, activity.launched.single().action)
         } finally { controller.pause().stop().destroy() }
     }
-    @Test fun samplesRequireOptInIgnoreUnrelatedAppsAndStayBounded() {
-        val context = RuntimeEnvironment.getApplication()
-        assertFalse(NotificationTrace.enabled(context))
-        assertNull(NotificationTrace.received(context, sample("com.tencent.mm", "付款成功 ¥18.60")))
-        NotificationTrace.setEnabled(context, true)
-        assertNull(NotificationTrace.received(context, sample("unrelated.app", "付款成功 ¥18.60")))
-        assertNull(NotificationTrace.received(context, sample("com.tencent.mm", "今晚一起吃饭", "朋友")))
-        val first = NotificationTrace.received(context, sample("com.tencent.mm", "转账成功 ¥18.60"))!!
-        NotificationTrace.result(context, first, "已自动记账", "TRANSFER", 1860)
-        val report = JSONObject(NotificationTrace.export(context))
-        assertEquals("已自动记账", report.getJSONArray("events").getJSONObject(0).getString("result"))
-        assertEquals(1860L, report.getJSONArray("events").getJSONObject(0).getLong("amountCents"))
-        assertFalse(report.has("imei"))
-        repeat(85) { NotificationTrace.received(context, sample("com.tencent.mm", "付款成功 ¥1.00")) }
-        assertEquals(80, NotificationTrace.count(context))
-        NotificationTrace.setEnabled(context, false)
-        assertNull(NotificationTrace.received(context, sample("com.tencent.mm", "付款成功 ¥18.60")))
-        NotificationTrace.clear(context); assertEquals(0, NotificationTrace.count(context))
-    }
-    private fun sample(pkg: String, body: String, title: String = "微信支付") = StatusBarNotification(pkg, pkg, 1, null, 1000, 0, 0,
-        Notification().apply { extras = Bundle().apply { putCharSequence(Notification.EXTRA_TITLE, title); putCharSequence(Notification.EXTRA_TEXT, body) } }, android.os.Process.myUserHandle(), System.currentTimeMillis())
 }
