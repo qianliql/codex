@@ -51,10 +51,14 @@ class SettingsFragment : Fragment() {
         super.onResume()
         refreshStatus()
     }
-    private fun refreshStatus() {
+    internal fun refreshStatus() {
         NotificationAccess.reconnectIfNeeded(requireContext())
         binding?.themeSettings?.text = "主题配色 · ${LedgerThemes.selected(requireContext()).label}"
-        binding?.notificationStatus?.text = if (NotificationAccess.isEnabled(requireContext())) "通知自动记账：已开启" else "通知自动记账：未开启"
+        binding?.notificationStatus?.text = when {
+            !NotificationAccess.isEnabled(requireContext()) -> "通知自动记账：未开启"
+            com.example.lightledger.notification.PaymentNotificationService.isConnected -> "通知自动记账：监听已连接"
+            else -> "通知自动记账：等待监听连接"
+        }
         binding?.quickNotificationStatus?.text = if (NotificationAccess.canPost(requireContext())) "快捷分类通知：已开启" else "快捷分类通知：未开启"
     }
     private fun fileDate() = SimpleDateFormat("yyyy_MM_dd", Locale.ROOT).format(Date())

@@ -56,6 +56,9 @@ class TransactionsPagingTest {
                 frame.findViewById<View>(R.id.moreActions).performClick()
                 val popup = shadowOf(RuntimeEnvironment.getApplication()).latestPopupWindow
                 val menuList = findList(popup.contentView)!!
+                val titles = (0 until menuList.adapter.count).map { (menuList.adapter.getItem(it) as MenuItem).title.toString() }
+                assertEquals(3, titles.size)
+                assertFalse(titles.any { it.contains("刷新") || it.contains("清除") || it.contains("重置") })
                 val position = (0 until menuList.adapter.count).first { (menuList.adapter.getItem(it) as MenuItem).itemId == id }
                 menuList.performItemClick(menuList.adapter.getView(position, null, menuList), position, menuList.adapter.getItemId(position))
             }
@@ -67,6 +70,7 @@ class TransactionsPagingTest {
             }
 
             awaitCount(100)
+            assertEquals(View.GONE, frame.findViewById<View>(R.id.resetSearch).visibility)
             assertEquals((207L downTo 108L).toList(), adapter.currentList.map { it.transaction.id })
             assertTrue(list.findViewHolderForAdapterPosition(0)!!.itemView.performLongClick())
             nextPage(99, 200)
@@ -89,10 +93,11 @@ class TransactionsPagingTest {
             awaitCount(7)
             assertEquals((7L downTo 1L).toList(), adapter.currentList.map { it.transaction.id })
             assertTrue(frame.findViewById<TextView>(R.id.resultCount).text.toString().contains("筛选 1 项"))
-            moreAction(R.id.action_refresh_bills)
-            awaitCount(7)
-            moreAction(R.id.action_clear_filters)
+            assertEquals(View.VISIBLE, frame.findViewById<View>(R.id.resetSearch).visibility)
+            frame.findViewById<View>(R.id.resetSearch).performClick()
             awaitCount(100)
+            assertEquals(View.GONE, frame.findViewById<View>(R.id.resetSearch).visibility)
+            assertEquals(View.VISIBLE, frame.findViewById<View>(R.id.billPageTitle).visibility)
             assertFalse(frame.findViewById<TextView>(R.id.resultCount).text.toString().contains("筛选"))
             // None of the UI actions write or delete records.
             assertEquals(207, runBlocking { db.dao().allTransactionsOnce().size })

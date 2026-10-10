@@ -47,6 +47,7 @@ class TransactionsFragment : Fragment() {
     private var adapter: TransactionAdapter? = null
     private var monthCursor = MonthSelection.at()
     private var filter = MonthSelection.apply(TransactionFilter(), monthCursor)
+    private var searchApplied = false
     private val pendingOnly get() = filter.pendingOnly
     private val rows = mutableListOf<TransactionRow>()
     private var queryJob: Job? = null
@@ -73,6 +74,7 @@ class TransactionsFragment : Fragment() {
         val b = binding ?: return
         if (savedInstanceState != null) {
             filter = TransactionFilter.readFrom(savedInstanceState)
+            searchApplied = savedInstanceState.getBoolean("search_applied")
             monthCursor = StatisticsPeriod(savedInstanceState.getInt("month_year", monthCursor.year), savedInstanceState.getInt("month_number", monthCursor.month!!))
         }
         selectedIds.addAll(savedInstanceState?.getLongArray("selected_ids")?.toList().orEmpty())
@@ -104,6 +106,11 @@ class TransactionsFragment : Fragment() {
         b.addTransaction.setOnClickListener { startActivity(Intent(requireContext(), TransactionEditorActivity::class.java)) }
         b.moreActions.setOnClickListener { showMoreActions() }
         b.searchFilters.setOnClickListener { showFilters() }
+        b.resetSearch.setOnClickListener {
+            filter = MonthSelection.apply(TransactionFilter(), monthCursor)
+            searchApplied = false
+            refresh()
+        }
         b.previousMonth.setOnClickListener { chooseMonth(MonthSelection.move(monthCursor, -1)) }
         b.nextMonth.setOnClickListener { chooseMonth(MonthSelection.move(monthCursor, 1)) }
         b.billMonthPicker.setOnClickListener { MonthSelection.show(requireContext(), monthCursor, ::chooseMonth) }
@@ -127,6 +134,7 @@ class TransactionsFragment : Fragment() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putLongArray("selected_ids", selectedIds.toLongArray())
         outState.putBoolean("selection_mode", selectionMode)
+        outState.putBoolean("search_applied", searchApplied)
         outState.putInt("month_year", monthCursor.year)
         outState.putInt("month_number", monthCursor.month!!)
         filter.writeTo(outState)
@@ -250,6 +258,7 @@ class TransactionsFragment : Fragment() {
     private val searchPage = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             filter = TransactionFilter.readFrom(result.data?.getBundleExtra(TransactionFilter.EXTRA))
+            searchApplied = true
             refresh()
         }
     }
@@ -266,14 +275,9 @@ class TransactionsFragment : Fragment() {
             menu.findItem(R.id.action_pending).title = if (pendingOnly) "显示全部账单" else "待处理账单"
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
-                    R.id.action_clear_filters -> { filter = TransactionFilter(start = filter.start, end = filter.end); refresh() }
                     R.id.action_pending -> { filter = filter.copy(pendingOnly = !pendingOnly); refresh() }
                     R.id.action_import_screenshot -> pickScreenshot.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     R.id.action_import_screenshots -> pickScreenshots.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    R.id.action_refresh_bills -> {
-                        com.example.lightledger.notification.NotificationAccess.reconnectIfNeeded(requireContext())
-                        refresh()
-                    }
                     else -> return@setOnMenuItemClickListener false
                 }
                 true
@@ -295,6 +299,9 @@ class TransactionsFragment : Fragment() {
         val b = binding ?: return
         val exact = MonthSelection.from(filter)
         if (exact != null) monthCursor = exact
+        val canReset = searchApplied || nonDateCount > 0 || exact == null
+        b.resetSearch.visibility = if (canReset) View.VISIBLE else View.GONE
+        b.billPageTitle.visibility = if (canReset) View.GONE else View.VISIBLE
         val label = exact?.label() ?: if (filter.start == 0L && filter.end == Long.MAX_VALUE) "全部月份" else "自选日期"
         b.billMonthLabel.text = "$label ▾"
         b.billMonthPicker.contentDescription = "$label，点击选择年份和月份"

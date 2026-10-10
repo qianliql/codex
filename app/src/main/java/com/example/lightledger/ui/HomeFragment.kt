@@ -15,7 +15,6 @@ import com.example.lightledger.R
 import com.example.lightledger.data.CategoryTotal
 import com.example.lightledger.databinding.FragmentHomeBinding
 import com.example.lightledger.notification.NotificationAccess
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,9 +45,9 @@ class HomeFragment : Fragment() {
         b.recentList.layoutManager = LinearLayoutManager(requireContext())
         b.recentList.adapter = adapter
         b.addTransaction.setOnClickListener { startActivity(Intent(requireContext(), TransactionEditorActivity::class.java)) }
-        b.viewTransactions.setOnClickListener { openTab(R.id.nav_transactions) }
-        b.viewAllTransactions.setOnClickListener { openTab(R.id.nav_transactions) }
-        b.viewStatistics.setOnClickListener { openTab(R.id.nav_statistics) }
+        b.viewTransactions.setOnClickListener { (requireActivity() as MainActivity).openBills() }
+        b.viewAllTransactions.setOnClickListener { (requireActivity() as MainActivity).openBills() }
+        b.viewStatistics.setOnClickListener { (requireActivity() as MainActivity).openStatistics() }
         b.toggleAmounts.setOnClickListener {
             hidden = !hidden
             viewLifecycleOwner.lifecycleScope.launch { repository.putSetting("home_hide_amounts", hidden.toString()) }
@@ -92,9 +91,6 @@ class HomeFragment : Fragment() {
         b.todayExpense.text = if (hidden) "¥****" else UiFormat.money(todayExpense)
         CategoryRows.show(b.categorySummary, categories.take(5).map { it.label to it.amountCents }, "本月暂无支出", hidden, iconKeys = categories.associate { it.label to it.iconKey })
         recentAdapter?.hideAmounts = hidden
-    }
-    private fun openTab(id: Int) {
-        requireActivity().findViewById<BottomNavigationView>(R.id.bottomNavigation).selectedItemId = id
     }
     override fun onDestroyView() { recentAdapter = null; binding = null; super.onDestroyView() }
 }

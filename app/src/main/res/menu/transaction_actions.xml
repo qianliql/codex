@@ -1,7 +1,5 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/action_clear_filters" android:title="清除筛选（保留日期）" />
     <item android:id="@+id/action_pending" android:title="待处理账单" />
     <item android:id="@+id/action_import_screenshot" android:title="导入单张截图" />
     <item android:id="@+id/action_import_screenshots" android:title="批量导入截图" />
-    <item android:id="@+id/action_refresh_bills" android:title="刷新账单" />
 </menu>

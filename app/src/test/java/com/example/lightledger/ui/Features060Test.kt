@@ -41,11 +41,57 @@ class Features060Test {
     private lateinit var db: LedgerDatabase
     @Before fun setupDatabase() {
         LedgerDatabase::class.java.getDeclaredField("instance").apply { isAccessible = true; set(null, null) }
+        // Fragment-owned AndroidViewModels also use this singleton. Clear its old
+        // Application when Robolectric starts a new test with a fresh Room instance.
+        ViewModelProvider.AndroidViewModelFactory::class.java.declaredFields
+            .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == ViewModelProvider.AndroidViewModelFactory::class.java }
+            .forEach { it.isAccessible = true; it.set(null, null) }
         db = LedgerDatabase.get(RuntimeEnvironment.getApplication())
     }
     @After fun closeDatabase() {
         db.close()
         LedgerDatabase::class.java.getDeclaredField("instance").apply { isAccessible = true; set(null, null) }
+    }
+
+    @Test fun searchResultResetClearsCriteriaReturnsToMonthAndSurvivesViewRestoration() {
+        val month = MonthSelection.at()
+        runBlocking { db.dao().insertTransactions(listOf(
+            LedgerTransaction(id = 1, amountCents = 100, type = TransactionType.EXPENSE,
+                merchant = "示例关键字", timestamp = month.bounds().first + 1),
+            LedgerTransaction(id = 2, amountCents = 200, type = TransactionType.EXPENSE,
+                merchant = "示例关键字", timestamp = month.bounds().first - 1))) }
+        val controller = Robolectric.buildActivity(PreviewActivity::class.java).setup()
+        try {
+            val activity = controller.get()
+            val frame = FrameLayout(activity).apply { id = R.id.pageContainer }
+            activity.setContentView(frame)
+            var fragment = TransactionsFragment()
+            activity.supportFragmentManager.beginTransaction().add(frame.id, fragment).commitNow()
+            fun ids() = (frame.findViewById<RecyclerView>(R.id.transactionList).adapter as TransactionAdapter).currentList.map { it.transaction.id }
+            await { ids() == listOf(1L) }
+            frame.findViewById<View>(R.id.searchFilters).performClick()
+            val cancelled = shadowOf(activity).nextStartedActivityForResult
+            shadowOf(activity).receiveResult(cancelled.intent, android.app.Activity.RESULT_CANCELED, null)
+            assertEquals(View.GONE, frame.findViewById<View>(R.id.resetSearch).visibility)
+            frame.findViewById<View>(R.id.searchFilters).performClick()
+            val started = shadowOf(activity).nextStartedActivityForResult
+            shadowOf(activity).receiveResult(started.intent, android.app.Activity.RESULT_OK,
+                android.content.Intent().putExtra(TransactionFilter.EXTRA, TransactionFilter(search = "关键字").writeTo(Bundle())))
+            await { ids() == listOf(1L, 2L) }
+            assertEquals("全部月份 ▾", frame.findViewById<TextView>(R.id.billMonthLabel).text.toString())
+            assertEquals(View.VISIBLE, frame.findViewById<View>(R.id.resetSearch).visibility)
+            val saved = activity.supportFragmentManager.saveFragmentInstanceState(fragment)!!
+            activity.supportFragmentManager.beginTransaction().remove(fragment).commitNow()
+            fragment = TransactionsFragment().apply { setInitialSavedState(saved) }
+            activity.supportFragmentManager.beginTransaction().add(frame.id, fragment).commitNow()
+            await { ids() == listOf(1L, 2L) }
+            assertEquals(View.VISIBLE, frame.findViewById<View>(R.id.resetSearch).visibility)
+            frame.findViewById<View>(R.id.resetSearch).performClick()
+            await { ids() == listOf(1L) }
+            assertEquals("${month.label()} ▾", frame.findViewById<TextView>(R.id.billMonthLabel).text.toString())
+            assertEquals(View.GONE, frame.findViewById<View>(R.id.resetSearch).visibility)
+            assertEquals(2, runBlocking { db.dao().allTransactionsOnce().size })
+        } finally { controller.pause().stop().destroy() }
     }
 
     @Test fun billArrowsAndPickerUseActualMonthQueryAndRememberIt() {

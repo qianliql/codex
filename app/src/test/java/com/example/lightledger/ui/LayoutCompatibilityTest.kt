@@ -116,7 +116,7 @@ class LayoutCompatibilityTest {
         RuntimeEnvironment.setFontScale(1f)
         val screens = listOf(R.layout.fragment_home to "home", R.layout.fragment_transactions to "bills",
             R.layout.fragment_statistics to "statistics", R.layout.fragment_settings to "settings")
-        screens.forEachIndexed { index, (layout, name) ->
+        screens.forEach { (layout, name) ->
             val controller = Robolectric.buildActivity(PreviewActivity::class.java).setup()
             try {
                 val activity = controller.get()
@@ -125,7 +125,8 @@ class LayoutCompatibilityTest {
                 val container = root.findViewById<ViewGroup>(R.id.pageContainer)
                 activity.layoutInflater.inflate(layout, container, true)
                 val nav = root.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNavigation)
-                nav.selectedItemId = listOf(R.id.nav_home, R.id.nav_transactions, R.id.nav_statistics, R.id.nav_settings)[index]
+                nav.selectedItemId = if (layout == R.layout.fragment_settings) R.id.nav_settings else R.id.nav_home
+                assertEquals(2, nav.menu.size())
                 SystemBarInsets.apply(root)
                 ViewCompat.dispatchApplyWindowInsets(root, bars(24, 24))
                 fillSample(root, layout)
@@ -170,7 +171,7 @@ class LayoutCompatibilityTest {
                 val root = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
                 val page = root.findViewById<ViewGroup>(R.id.pageContainer)
                 activity.layoutInflater.inflate(R.layout.fragment_transactions, page, true)
-                root.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNavigation).selectedItemId = R.id.nav_transactions
+                root.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNavigation).selectedItemId = R.id.nav_home
                 SystemBarInsets.apply(root)
                 ViewCompat.dispatchApplyWindowInsets(root, bars(24, 24))
                 fillSample(root, R.layout.fragment_transactions)
@@ -178,11 +179,23 @@ class LayoutCompatibilityTest {
                 listOf("normal", "search", "selection").forEach { mode ->
                     root.findViewById<View>(R.id.normalActions).visibility = if (mode == "selection") View.GONE else View.VISIBLE
                     root.findViewById<View>(R.id.selectionBar).visibility = if (mode == "selection") View.VISIBLE else View.GONE
+                    root.findViewById<View>(R.id.resetSearch).visibility = if (mode == "search") View.VISIBLE else View.GONE
+                    root.findViewById<View>(R.id.billPageTitle).visibility = if (mode == "search") View.GONE else View.VISIBLE
                     root.findViewById<TextView>(R.id.resultCount).text = if (mode == "search") "100 笔 · 筛选 3 项" else "100 笔 · 长按多选"
                     shadowOf(Looper.getMainLooper()).idle()
                     ViewCompat.dispatchApplyWindowInsets(root, bars(24, 24))
                     measure(root)
                     assertTextFits(root)
+                    if (mode == "search") {
+                        val reset = root.findViewById<TextView>(R.id.resetSearch)
+                        val search = root.findViewById<View>(R.id.searchFilters)
+                        val touch = (48 * root.resources.displayMetrics.density).toInt()
+                        assertTrue(reset.width >= touch && reset.height >= touch)
+                        assertTrue("reset beside search", reset.left >= search.right)
+                        assertTrue("reset text fits", reset.layout.getLineWidth(0) <= reset.width - reset.compoundPaddingLeft - reset.compoundPaddingRight)
+                        val more = root.findViewById<View>(R.id.moreActions)
+                        assertTrue("toolbar stays inside page", more.right <= (more.parent as View).width)
+                    }
                     assertTrue("$name/$mode: list takes at least two thirds of bill page", list.height * 3 >= page.height * 2)
                     // Also include the bottom navigation in the denominator, excluding system bars.
                     val usable = root.height - root.paddingTop - root.paddingBottom
@@ -309,7 +322,7 @@ class LayoutCompatibilityTest {
         val directory = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
-        val file = File(directory, "LightLedger-0.6.0-$name.png")
+        val file = File(directory, "LightLedger-0.7.0-$name.png")
         file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()

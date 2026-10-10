@@ -1,19 +1,39 @@
 package com.example.lightledger.ui
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import com.example.lightledger.R
 import com.example.lightledger.databinding.ActivityMainBinding
 import com.example.lightledger.notification.NotificationAccess
+import com.example.lightledger.notification.PaymentNotificationService
 
 class MainActivity : LedgerActivity() {
     private lateinit var binding: ActivityMainBinding
-    private var pendingSelectionId: Long? = null
-    fun selectBill(id: Long) {
-        pendingSelectionId = id
-        binding.bottomNavigation.selectedItemId = R.id.nav_transactions
+    private val accessHandler = Handler(Looper.getMainLooper())
+    private var disconnectedAt: Long? = null
+    private val accessCheck = object : Runnable {
+        override fun run() {
+            refreshAccessNotice()
+            accessHandler.postDelayed(this, 2_000L)
+        }
+    }
+
+    fun selectBill(id: Long) = openBills(id)
+
+    fun openBills(selectionId: Long? = null) = openPage(TransactionsFragment().apply {
+        selectionId?.let { arguments = Bundle().apply { putLong("select_id", it) } }
+    })
+
+    fun openStatistics() = openPage(StatisticsFragment())
+
+    private fun openPage(fragment: Fragment) {
+        supportFragmentManager.beginTransaction().replace(R.id.pageContainer, fragment)
+            .addToBackStack("home_detail").commit()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,17 +43,19 @@ class MainActivity : LedgerActivity() {
         SystemBarInsets.apply(binding.root)
         binding.enableAutomatic.setOnClickListener { NotificationAccess.openSettings(this) }
         binding.bottomNavigation.setOnItemSelectedListener { item ->
-            showTab(item.itemId)
+            showRoot(item.itemId)
             true
         }
-        if (savedInstanceState == null) binding.bottomNavigation.selectedItemId = R.id.nav_home
+        binding.bottomNavigation.setOnItemReselectedListener { returnToRoot() }
+        if (savedInstanceState == null) showRoot(R.id.nav_home)
     }
 
     override fun onResume() {
         super.onResume()
-        NotificationAccess.reconnectIfNeeded(this)
+        disconnectedAt = null
+        accessHandler.removeCallbacks(accessCheck)
+        accessCheck.run()
         val enabled = NotificationAccess.isEnabled(this)
-        binding.accessBanner.visibility = if (enabled) View.GONE else View.VISIBLE
         val prefs = getSharedPreferences("permission_guide", MODE_PRIVATE)
         if (!enabled && !prefs.getBoolean("shown", false)) {
             prefs.edit().putBoolean("shown", true).apply()
@@ -45,13 +67,35 @@ class MainActivity : LedgerActivity() {
         }
     }
 
-    private fun showTab(id: Int) {
+    override fun onPause() {
+        accessHandler.removeCallbacks(accessCheck)
+        super.onPause()
+    }
+
+    private fun refreshAccessNotice() {
+        val enabled = NotificationAccess.isEnabled(this)
+        NotificationAccess.reconnectIfNeeded(this)
+        val connected = enabled && PaymentNotificationService.isConnected
+        if (!enabled || connected) disconnectedAt = null
+        else if (disconnectedAt == null) disconnectedAt = SystemClock.elapsedRealtime()
+        val needsReconnect = enabled && !connected &&
+            SystemClock.elapsedRealtime() - (disconnectedAt ?: SystemClock.elapsedRealtime()) >= 5_000L
+        binding.accessBanner.visibility = if (!enabled || needsReconnect) View.VISIBLE else View.GONE
+        val message = if (!enabled) "自动记账未开启，请允许通知读取" else "监听未连接，请关闭再开启通知读取"
+        val action = if (!enabled) "去开启" else "重新开启"
+        if (binding.accessMessage.text.toString() != message) binding.accessMessage.text = message
+        if (binding.enableAutomatic.text.toString() != action) binding.enableAutomatic.text = action
+        (supportFragmentManager.findFragmentById(R.id.pageContainer) as? SettingsFragment)?.refreshStatus()
+    }
+
+    private fun returnToRoot() {
+        supportFragmentManager.executePendingTransactions()
+        supportFragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+    }
+
+    private fun showRoot(id: Int) {
+        returnToRoot()
         val fragment: Fragment = when (id) {
-            R.id.nav_transactions -> TransactionsFragment().apply {
-                pendingSelectionId?.let { arguments = Bundle().apply { putLong("select_id", it) } }
-                pendingSelectionId = null
-            }
-            R.id.nav_statistics -> StatisticsFragment()
             R.id.nav_settings -> SettingsFragment()
             else -> HomeFragment()
         }
