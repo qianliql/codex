@@ -158,6 +158,50 @@ class LayoutCompatibilityTest {
         }
     }
 
+    @Test fun billsKeepTwoThirdsOfThePageInNormalSearchAndSelectionModes() {
+        listOf(Triple("w360dp-h760dp-xxhdpi", 1f, "standard"),
+            Triple("w320dp-h700dp-xxhdpi", 1.3f, "large-font")).forEach { (size, scale, name) ->
+            RuntimeEnvironment.setQualifiers(size)
+            RuntimeEnvironment.setFontScale(scale)
+            val controller = Robolectric.buildActivity(PreviewActivity::class.java).setup()
+            try {
+                val activity = controller.get()
+                activity.setContentView(R.layout.activity_main)
+                val root = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
+                val page = root.findViewById<ViewGroup>(R.id.pageContainer)
+                activity.layoutInflater.inflate(R.layout.fragment_transactions, page, true)
+                root.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNavigation).selectedItemId = R.id.nav_transactions
+                SystemBarInsets.apply(root)
+                ViewCompat.dispatchApplyWindowInsets(root, bars(24, 24))
+                fillSample(root, R.layout.fragment_transactions)
+                val list = root.findViewById<RecyclerView>(R.id.transactionList)
+                listOf("normal", "search", "selection").forEach { mode ->
+                    root.findViewById<View>(R.id.normalActions).visibility = if (mode == "selection") View.GONE else View.VISIBLE
+                    root.findViewById<View>(R.id.selectionBar).visibility = if (mode == "selection") View.VISIBLE else View.GONE
+                    root.findViewById<View>(R.id.filterSummary).visibility = if (mode == "search") View.VISIBLE else View.GONE
+                    root.findViewById<TextView>(R.id.filterDescription).text = "午餐 · 2026年10月 · 微信 · 正餐"
+                    root.findViewById<TextView>(R.id.recordsTitle).text = if (mode == "search") "搜索结果" else "全部记录"
+                    root.findViewById<TextView>(R.id.resultCount).text = "已显示 100 笔 · 长按多选"
+                    shadowOf(Looper.getMainLooper()).idle()
+                    ViewCompat.dispatchApplyWindowInsets(root, bars(24, 24))
+                    measure(root)
+                    assertTextFits(root)
+                    assertTrue("$name/$mode: list takes at least two thirds of bill page", list.height * 3 >= page.height * 2)
+                    // Also include the bottom navigation in the denominator, excluding system bars.
+                    val usable = root.height - root.paddingTop - root.paddingBottom
+                    assertTrue("$name/$mode: list takes at least two thirds including navigation", list.height * 3 >= usable * 2)
+                    if (mode != "selection") listOf(R.id.searchFilters, R.id.addTransaction, R.id.moreActions).forEach { id ->
+                        val button = root.findViewById<View>(id)
+                        val touch = (48 * root.resources.displayMetrics.density).toInt()
+                        assertTrue("toolbar touch target", button.height >= touch && button.width >= touch)
+                    }
+                    println("Bill area $name/$mode: ${list.height}/$usable (${list.height * 100 / usable}%)")
+                    if (RuntimeEnvironment.getApiLevel() == 29) savePreview(root, "bills-$name-$mode")
+                }
+            } finally { controller.pause().stop().destroy() }
+        }
+    }
+
     @Test fun systemInsetsDoNotAccumulateAndKeyboardGetsSpace() {
         val controller = Robolectric.buildActivity(PreviewActivity::class.java).setup()
         try {
@@ -252,11 +296,14 @@ class LayoutCompatibilityTest {
             val adapter = TransactionAdapter { }
             list.layoutManager = LinearLayoutManager(root.context)
             list.adapter = adapter
-            val samples = listOf("午餐" to "正餐", "日常用品" to "日用")
+            val samples = if (listId == R.id.transactionList) listOf("午餐" to "正餐", "日常用品" to "日用",
+                "下午茶" to "零食", "电影" to "娱乐", "打印资料" to "教育", "充电线" to "数码")
+                else listOf("午餐" to "正餐", "日常用品" to "日用")
             adapter.submitList(samples.mapIndexed { index, (merchant, category) ->
                 TransactionRow(LedgerTransaction(id = index + 1L, amountCents = if (index == 0) 3800 else 2990,
                     type = TransactionType.EXPENSE, merchant = merchant, timestamp = 1791529200000,
-                    paymentMethod = PaymentMethod.WECHAT, classificationStatus = ClassificationStatus.CLASSIFIED), category)
+                    paymentMethod = PaymentMethod.WECHAT, classificationStatus = ClassificationStatus.CLASSIFIED,
+                    note = if (listId == R.id.transactionList && index == 1) "纸巾和洗手液" else null), category)
             })
         }
     }
@@ -265,7 +312,7 @@ class LayoutCompatibilityTest {
         val directory = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
-        val file = File(directory, "LightLedger-0.5.3-$name.png")
+        val file = File(directory, "LightLedger-0.5.4-$name.png")
         file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()

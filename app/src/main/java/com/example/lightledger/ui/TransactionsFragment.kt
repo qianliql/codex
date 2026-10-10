@@ -11,16 +11,15 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
-import com.example.lightledger.data.PaymentMethod
 import com.example.lightledger.data.TransactionRow
-import com.example.lightledger.data.TransactionSource
-import com.example.lightledger.data.TransactionType
 import com.example.lightledger.databinding.FragmentTransactionsBinding
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
@@ -54,11 +53,18 @@ class TransactionsFragment : Fragment() {
     private var queryGeneration = 0
     private var loading = false
     private var hasMore = false
+    private var pageFailed = false
     private val pageSize = 100
     private val selectedIds = linkedSetOf<Long>()
     private var selectionMode = false
     private var deleting = false
     private var selectionBack: OnBackPressedCallback? = null
+    private val pagingScroll = object : RecyclerView.OnScrollListener() {
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            // Layout/accessibility jumps can reach the end with a zero scroll delta.
+            loadIfNearEnd()
+        }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
         FragmentTransactionsBinding.inflate(inflater, container, false).also { binding = it }.root
@@ -90,30 +96,19 @@ class TransactionsFragment : Fragment() {
         b.deleteSelected.setOnClickListener { confirmBatchDelete() }
         b.transactionList.layoutManager = LinearLayoutManager(requireContext())
         b.transactionList.adapter = adapter
+        b.transactionList.addOnScrollListener(pagingScroll)
         adapter?.submitList(rows.toList())
-        b.pendingFilter.text = if (pendingOnly) "显示全部" else "待处理账单"
         b.addTransaction.setOnClickListener { startActivity(Intent(requireContext(), TransactionEditorActivity::class.java)) }
-        b.importScreenshot.setOnClickListener {
-            pickScreenshot.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }
-        b.importScreenshots.setOnClickListener {
-            pickScreenshots.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }
-        b.pendingFilter.setOnClickListener {
-            filter = filter.copy(pendingOnly = !pendingOnly)
-            b.pendingFilter.text = if (pendingOnly) "显示全部" else "待处理账单"
-            refresh()
-        }
+        b.moreActions.setOnClickListener { showMoreActions() }
         b.searchFilters.setOnClickListener { showFilters() }
-        b.loadMore.setOnClickListener { loadNext() }
-        b.clearFilters.setOnClickListener { filter = TransactionFilter(); b.pendingFilter.text = "待处理账单"; refresh() }
+        b.filterDescription.setOnClickListener { showFilters() }
+        b.clearFilters.setOnClickListener { filter = TransactionFilter(); refresh() }
         b.refreshBills.setColorSchemeColors(requireContext().ledgerColor(R.color.ledger_teal))
         b.refreshBills.setOnChildScrollUpCallback { _, _ -> b.transactionList.canScrollVertically(-1) }
         b.refreshBills.setOnRefreshListener {
             com.example.lightledger.notification.NotificationAccess.reconnectIfNeeded(requireContext())
             refresh()
         }
-        b.refreshNow.setOnClickListener { refresh() }
         updateSelectionUi()
         model.transactionChangeSignal.observe(viewLifecycleOwner) { if (!selectionMode) refresh() }
     }
@@ -132,7 +127,7 @@ class TransactionsFragment : Fragment() {
         b.refreshBills.isEnabled = !selectionMode
         b.normalActions.visibility = if (selectionMode) View.GONE else View.VISIBLE
         b.selectionBar.visibility = if (selectionMode) View.VISIBLE else View.GONE
-        b.selectionCount.text = "已选 ${selectedIds.size} 笔账单"
+        b.selectionCount.text = "已选 ${selectedIds.size} 笔"
         b.deleteSelected.text = "删除（${selectedIds.size}）"
         b.deleteSelected.isEnabled = selectedIds.isNotEmpty() && !deleting
         b.cancelSelection.isEnabled = !deleting
@@ -184,9 +179,18 @@ class TransactionsFragment : Fragment() {
         binding?.resultCount?.text = "正在查找账单…"
         rows.clear()
         adapter?.submitList(emptyList())
+        binding?.transactionList?.scrollToPosition(0)
         hasMore = false
+        pageFailed = false
         loading = false
+        binding?.emptyTransactions?.visibility = View.GONE
         loadNext()
+    }
+
+    private fun loadIfNearEnd() {
+        val list = binding?.transactionList ?: return
+        val manager = list.layoutManager as? LinearLayoutManager ?: return
+        if (!loading && hasMore && !pageFailed && manager.findLastVisibleItemPosition() >= rows.size - 10) loadNext()
     }
 
     private fun loadNext() {
@@ -194,30 +198,39 @@ class TransactionsFragment : Fragment() {
         if (loading || (rows.isNotEmpty() && !hasMore)) return
         loading = true
         val generation = queryGeneration
-        b.loadMore.isEnabled = false
+        b.resultCount.text = if (rows.isEmpty()) "正在查找账单…" else "已显示 ${rows.size} 笔 · 加载中…"
         queryJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val page = repository.searchTransactions(filter.search, filter.start, filter.end,
                     filter.categoryId, filter.tagId, filter.method, filter.source, filter.type,
                     pendingOnly, pageSize, rows.size)
+                if (generation != queryGeneration || binding !== b) return@launch
                 rows.addAll(page)
                 hasMore = page.size == pageSize
-                adapter?.submitList(rows.toList())
+                adapter?.submitList(rows.toList()) {
+                    // Wait for DiffUtil/layout before deciding whether another page is needed.
+                    b.transactionList.post { if (generation == queryGeneration && binding === b) loadIfNearEnd() }
+                }
                 b.emptyTransactions.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
                 b.emptyTransactions.text = when {
                     pendingOnly -> "没有符合条件的待处理账单"
                     filter.activeCount > 0 -> "没有找到匹配账单\n试试减少条件或更换关键词"
                     else -> "还没有账单，点击“记一笔”开始"
                 }
-                b.resultCount.text = (if (hasMore) "已显示 ${rows.size} 笔" else "${rows.size} 笔账单") + " · 长按可多选删除"
-                b.loadMore.visibility = if (hasMore) View.VISIBLE else View.GONE
-                b.loadMore.isEnabled = true
+                b.resultCount.text = (if (hasMore) "已显示 ${rows.size} 笔" else "${rows.size} 笔") + " · 长按多选"
                 updateSelectionUi()
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { b.resultCount.text = "读取失败，请下拉刷新"; Toast.makeText(requireContext(), "账单读取失败，请重试", Toast.LENGTH_SHORT).show() }
+            catch (e: Exception) {
+                if (generation == queryGeneration && binding === b) {
+                    // Stop automatic retries until the user explicitly refreshes.
+                    pageFailed = true
+                    b.resultCount.text = "读取失败，请下拉刷新"
+                    Toast.makeText(requireContext(), "账单读取失败，请重试", Toast.LENGTH_SHORT).show()
+                }
+            }
             finally {
                 if (generation == queryGeneration) {
-                    loading = false; b.refreshBills.isRefreshing = false; b.loadMore.isEnabled = true
+                    loading = false; b.refreshBills.isRefreshing = false
                 }
             }
         }
@@ -226,7 +239,6 @@ class TransactionsFragment : Fragment() {
     private val searchPage = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             filter = TransactionFilter.readFrom(result.data?.getBundleExtra(TransactionFilter.EXTRA))
-            binding?.pendingFilter?.text = if (pendingOnly) "显示全部" else "待处理账单"
             refresh()
         }
     }
@@ -236,22 +248,50 @@ class TransactionsFragment : Fragment() {
             .putExtra(TransactionFilter.EXTRA, filter.writeTo(Bundle())))
     }
 
+    private fun showMoreActions() {
+        val b = binding ?: return
+        PopupMenu(requireContext(), b.moreActions).apply {
+            inflate(R.menu.transaction_actions)
+            menu.findItem(R.id.action_pending).title = if (pendingOnly) "显示全部账单" else "待处理账单"
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.action_pending -> { filter = filter.copy(pendingOnly = !pendingOnly); refresh() }
+                    R.id.action_import_screenshot -> pickScreenshot.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    R.id.action_import_screenshots -> pickScreenshots.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    R.id.action_refresh_bills -> {
+                        com.example.lightledger.notification.NotificationAccess.reconnectIfNeeded(requireContext())
+                        refresh()
+                    }
+                    else -> return@setOnMenuItemClickListener false
+                }
+                true
+            }
+            show()
+        }
+    }
+
     private fun updateSearchUi() {
         val b = binding ?: return
         val applied = filter
         b.filterSummary.visibility = if (applied.activeCount > 0) View.VISIBLE else View.GONE
         b.recordsTitle.text = if (applied.activeCount > 0) "搜索结果" else "全部记录"
-        b.searchFilters.text = if (applied.activeCount > 0) "搜索 · ${applied.activeCount}" else "搜索"
+        b.searchFilters.text = "搜索"
         b.searchFilters.contentDescription = "搜索账单，已选 ${applied.activeCount} 项条件"
         summaryJob?.cancel()
+        b.filterDescription.text = applied.description(emptyList(), emptyList())
         if (applied.activeCount > 0) summaryJob = viewLifecycleOwner.lifecycleScope.launch {
-            b.filterDescription.text = applied.description(repository.categoryList(), repository.tags())
+            val description = applied.description(repository.categoryList(), repository.tags())
+            b.filterDescription.text = description
+            b.filterDescription.contentDescription = "$description，点击修改搜索条件"
         }
     }
 
     override fun onDestroyView() {
+        queryGeneration++
         queryJob?.cancel()
         summaryJob?.cancel()
+        binding?.transactionList?.removeOnScrollListener(pagingScroll)
+        binding?.transactionList?.adapter = null
         adapter = null
         selectionBack = null
         binding = null

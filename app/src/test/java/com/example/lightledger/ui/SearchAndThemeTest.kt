@@ -163,6 +163,6 @@ class SearchAndThemeTest {
         if (RuntimeEnvironment.getApiLevel() != 29) return
         val directory = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
-        root.draw(Canvas(bitmap)); File(directory, "LightLedger-0.5.3-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        root.draw(Canvas(bitmap)); File(directory, "LightLedger-0.5.4-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
     }
 }

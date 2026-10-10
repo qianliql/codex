@@ -1,39 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="?attr/ledgerBackground" android:orientation="vertical" android:paddingHorizontal="@dimen/ledger_page_gutter">
-    <TextView style="@style/LedgerPageTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:layout_marginBottom="6dp" android:text="账单" />
-    <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" android:text="每一笔日常，都有迹可循"/>
-    <LinearLayout android:id="@+id/normalActions" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-        <com.google.android.material.button.MaterialButton android:id="@+id/addTransaction" style="@style/LedgerButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="记一笔" app:icon="@drawable/ic_add" app:iconGravity="textStart" />
-        <com.google.android.material.button.MaterialButton android:id="@+id/searchFilters" style="@style/LedgerOutlineButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:text="搜索" android:contentDescription="搜索与筛选" app:icon="@drawable/ic_filter" app:iconGravity="textStart" />
-    </LinearLayout>
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-        <com.google.android.material.button.MaterialButton android:id="@+id/importScreenshot" style="@style/LedgerTextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="单张截图" app:icon="@drawable/ic_image" app:iconSize="18dp" app:iconGravity="textStart" />
-        <com.google.android.material.button.MaterialButton android:id="@+id/importScreenshots" style="@style/LedgerTextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="批量截图" app:icon="@drawable/ic_image" app:iconSize="18dp" app:iconGravity="textStart" />
-    </LinearLayout>
-<com.google.android.material.card.MaterialCardView android:id="@+id/filterSummary" style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:visibility="gone" app:cardBackgroundColor="?attr/ledgerSoft"><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:paddingHorizontal="12dp"><TextView android:id="@+id/filterDescription" style="@style/LedgerCaption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:maxLines="3" android:ellipsize="end" android:paddingVertical="12dp" android:textColor="?attr/colorPrimaryVariant" /><com.google.android.material.button.MaterialButton android:id="@+id/clearFilters" style="@style/LedgerTextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="清除" /></LinearLayout></com.google.android.material.card.MaterialCardView>
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:layout_marginBottom="9dp" android:gravity="center_vertical" android:orientation="horizontal">
-        <TextView style="@style/LedgerSectionTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="全部记录" android:id="@+id/recordsTitle" />
-        <com.google.android.material.button.MaterialButton android:id="@+id/pendingFilter" style="@style/LedgerTextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="待处理账单" />
-    </LinearLayout>
-    <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="10dp" android:text="下拉刷新 · 长按可多选删除" android:id="@+id/resultCount" />
-    </LinearLayout>
-    <com.google.android.material.card.MaterialCardView android:id="@+id/selectionBar" style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp" android:visibility="gone" app:cardBackgroundColor="?attr/ledgerSoft">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
-                <TextView android:id="@+id/selectionCount" style="@style/LedgerSectionTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="已选 0 笔账单" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/cancelSelection" style="@style/LedgerTextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="完成" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="?attr/ledgerBackground" android:orientation="vertical"
+    android:paddingHorizontal="@dimen/ledger_page_gutter" android:paddingTop="4dp">
+    <LinearLayout android:id="@+id/normalActions" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView style="@style/LedgerPageTitle" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="账单" android:textSize="24sp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/searchFilters"
+                style="@style/LedgerOutlineButton" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:minWidth="56dp" android:minHeight="48dp"
+                android:paddingHorizontal="8dp" android:text="搜索" android:textSize="14sp"
+                android:contentDescription="搜索账单" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/addTransaction"
+                style="@style/LedgerButton" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:layout_marginStart="6dp"
+                android:minWidth="72dp" android:minHeight="48dp" android:paddingHorizontal="10dp"
+                android:text="记一笔" android:textSize="14sp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/moreActions"
+                style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp"
+                android:minWidth="0dp" android:padding="0dp" android:contentDescription="更多账单操作"
+                app:icon="@drawable/ic_more" app:iconSize="24dp" app:iconPadding="0dp"
+                app:iconGravity="textStart" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:layout_marginBottom="6dp"
+            android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:id="@+id/recordsTitle" style="@style/LedgerCaption"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="全部记录" android:textColor="?attr/colorOnSurface" />
+            <TextView android:id="@+id/resultCount" style="@style/LedgerCaption"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginStart="8dp" android:gravity="end" android:maxLines="1"
+                android:ellipsize="end" android:text="下拉刷新 · 长按多选" />
+        </LinearLayout>
+        <com.google.android.material.card.MaterialCardView android:id="@+id/filterSummary"
+            style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp" android:visibility="gone" app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/ledgerSoft">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:gravity="center_vertical" android:paddingStart="12dp">
+                <TextView android:id="@+id/filterDescription" style="@style/LedgerCaption"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:minHeight="48dp" android:gravity="center_vertical" android:focusable="true"
+                    android:maxLines="1" android:ellipsize="end" android:textColor="?attr/colorPrimaryVariant" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/clearFilters"
+                    style="@style/LedgerTextButton" android:layout_width="wrap_content"
+                    android:layout_height="48dp" android:minWidth="56dp" android:paddingHorizontal="8dp"
+                    android:text="清除" android:contentDescription="清除所有搜索条件" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                <com.google.android.material.button.MaterialButton android:id="@+id/selectLoaded" style="@style/LedgerOutlineButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="全选已加载" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/deleteSelected" style="@style/LedgerButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="删除（0）" app:backgroundTint="@color/ledger_orange" />
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+    <com.google.android.material.card.MaterialCardView android:id="@+id/selectionBar"
+        style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp" android:visibility="gone" app:cardCornerRadius="16dp"
+        app:cardBackgroundColor="?attr/ledgerSoft">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:paddingHorizontal="8dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:gravity="center_vertical" android:orientation="horizontal">
+                <TextView android:id="@+id/selectionCount" style="@style/LedgerSectionTitle"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:text="已选 0 笔" android:textSize="16sp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/cancelSelection"
+                    style="@style/LedgerTextButton" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="完成" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <com.google.android.material.button.MaterialButton android:id="@+id/selectLoaded"
+                    style="@style/LedgerOutlineButton" android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:minHeight="48dp" android:text="全选已加载" android:textSize="14sp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/deleteSelected"
+                    style="@style/LedgerButton" android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_marginStart="8dp" android:minHeight="48dp"
+                    android:text="删除（0）" android:textSize="14sp" app:backgroundTint="@color/ledger_orange" />
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout android:id="@+id/refreshBills" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"><FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">    <TextView android:id="@+id/emptyTransactions" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:background="@drawable/bg_list_row" android:padding="24dp" android:text="还没有账单，记下第一笔吧" android:visibility="gone" />
-    <androidx.recyclerview.widget.RecyclerView android:id="@+id/transactionList" android:layout_width="match_parent" android:layout_height="match_parent" android:clipToPadding="false" android:paddingBottom="8dp" />
-</FrameLayout></androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-<com.google.android.material.button.MaterialButton android:id="@+id/refreshNow" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="刷新账单" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/loadMore" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="加载更多" android:visibility="gone" />
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout android:id="@+id/refreshBills"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/transactionList"
+                android:layout_width="match_parent" android:layout_height="match_parent"
+                android:clipToPadding="false" android:paddingBottom="8dp" />
+            <TextView android:id="@+id/emptyTransactions" style="@style/LedgerCaption"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="16dp" android:gravity="center" android:background="@drawable/bg_list_row"
+                android:padding="24dp" android:text="还没有账单，记下第一笔吧" android:visibility="gone" />
+        </FrameLayout>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 </LinearLayout>
