@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:gravity="center" android:orientation="vertical" android:padding="24dp" android:background="?attr/ledgerBackground">
+    <ProgressBar android:id="@+id/progress" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="20dp" android:gravity="center" android:text="正在本机识别截图…" android:textColor="?attr/colorOnSurface" android:textSize="17sp" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/manualEntry" style="@style/LedgerButton"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="18dp" android:text="手动填写" android:visibility="gone" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/cancel"
+        style="@style/LedgerTextButton"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:text="取消" />
+</LinearLayout>

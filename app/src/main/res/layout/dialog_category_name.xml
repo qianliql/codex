@@ -1,0 +1,6 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="24dp" android:paddingTop="8dp" android:paddingBottom="8dp">
+    <TextView android:id="@+id/nameExplanation" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="18dp" android:text="给分类起一个容易辨认的名字" />
+    <com.google.android.material.textfield.TextInputLayout android:id="@+id/nameInput" style="@style/LedgerInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="分类名称" app:helperText="例如：早餐、宠物、旅行" app:endIconMode="clear_text">
+        <com.google.android.material.textfield.TextInputEditText android:id="@+id/categoryName" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textCapSentences" android:singleLine="true" android:imeOptions="actionDone" />
+    </com.google.android.material.textfield.TextInputLayout>
+</LinearLayout>

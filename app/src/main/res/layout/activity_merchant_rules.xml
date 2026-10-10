@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="@dimen/ledger_page_gutter" android:background="?attr/ledgerBackground">
+    <TextView style="@style/LedgerPageTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="4dp" android:text="商户分类规则" />
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="20dp" android:hint="商户名称或关键词">
+        <com.google.android.material.textfield.TextInputEditText android:id="@+id/keyword"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:singleLine="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+    <Spinner android:id="@+id/category" android:layout_width="match_parent"
+        android:layout_height="48dp" />
+    <CheckBox android:id="@+id/exact" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:checked="true" android:text="商户名称完全相同" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/add" style="@style/LedgerButton"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="保存规则" />
+    <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="12dp" android:layout_marginBottom="12dp" android:text="取消勾选可做关键词匹配，长按规则可删除" />
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1">
+        <LinearLayout android:id="@+id/list" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" />
+    </ScrollView>
+</LinearLayout>

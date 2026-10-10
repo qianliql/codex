@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="?attr/ledgerBackground">
+    <LinearLayout android:id="@+id/accessBanner" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:paddingHorizontal="@dimen/ledger_page_gutter" android:background="?attr/ledgerSoft" android:visibility="gone">
+        <TextView style="@style/LedgerCaption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:paddingVertical="8dp" android:text="自动记账未开启" android:textColor="?attr/colorPrimaryVariant" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/enableAutomatic" style="@style/LedgerTextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="一键开启" />
+    </LinearLayout>
+    <FrameLayout android:id="@+id/pageContainer"
+        android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" />
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/ledgerBorder"/>
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:background="@color/white" android:elevation="0dp" android:minHeight="72dp"
+        app:itemIconTint="@color/navigation_tint" app:itemTextColor="@color/navigation_tint"
+        app:itemActiveIndicatorStyle="@style/LedgerNavIndicator" app:itemHorizontalTranslationEnabled="false" app:itemTextAppearanceActive="@style/LedgerNavLabel" app:itemTextAppearanceInactive="@style/LedgerNavLabel" app:labelVisibilityMode="labeled" app:menu="@menu/main_navigation" />
+</LinearLayout>

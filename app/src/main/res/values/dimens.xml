@@ -1,0 +1,4 @@
+<resources>
+    <dimen name="ledger_page_gutter">20dp</dimen>
+    <dimen name="ledger_page_top">20dp</dimen>
+</resources>

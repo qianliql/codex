@@ -1,0 +1,53 @@
+<resources>
+    <style name="Theme.LightLedger" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/ledger_teal</item><item name="colorPrimaryVariant">@color/ledger_teal_dark</item>
+        <item name="colorOnPrimary">@color/white</item><item name="colorSecondary">@color/ledger_teal</item>
+        <item name="colorSurface">@color/white</item><item name="colorOnSurface">@color/ledger_ink</item>
+        <item name="ledgerBackground">@color/ledger_background</item><item name="ledgerSoft">@color/ledger_teal_soft</item><item name="ledgerMuted">@color/ledger_muted</item><item name="ledgerBorder">@color/ledger_border</item>
+        <item name="android:fontFamily">sans-serif</item><item name="android:colorAccent">@color/ledger_teal</item>
+        <item name="android:windowLightStatusBar">true</item><item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/white</item><item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowBackground">@color/ledger_background</item><item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="materialButtonStyle">@style/LedgerButton</item><item name="textInputStyle">@style/LedgerInput</item>
+    </style>
+    <style name="LedgerPageTitle"><item name="android:textColor">?attr/colorOnSurface</item><item name="android:textSize">28sp</item><item name="android:fontFamily">sans-serif-medium</item></style>
+    <style name="LedgerSectionTitle"><item name="android:textColor">?attr/colorOnSurface</item><item name="android:textSize">18sp</item><item name="android:fontFamily">sans-serif-medium</item></style>
+    <style name="LedgerCaption"><item name="android:textColor">?attr/ledgerMuted</item><item name="android:textSize">13sp</item><item name="android:lineSpacingExtra">3dp</item></style>
+    <style name="LedgerCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">24dp</item><item name="cardElevation">0dp</item><item name="cardBackgroundColor">@color/white</item>
+        <item name="strokeColor">?attr/ledgerBorder</item><item name="strokeWidth">1dp</item>
+    </style>
+    <style name="LedgerButton" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">16dp</item><item name="android:minHeight">52dp</item><item name="android:textAllCaps">false</item>
+        <item name="android:textSize">15sp</item><item name="android:fontFamily">sans-serif-medium</item><item name="android:paddingHorizontal">16dp</item>
+        <item name="android:insetTop">3dp</item><item name="android:insetBottom">3dp</item>
+    </style>
+    <style name="LedgerOutlineButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="cornerRadius">16dp</item><item name="android:minHeight">52dp</item><item name="android:textAllCaps">false</item>
+        <item name="android:textSize">15sp</item><item name="strokeColor">?attr/ledgerBorder</item><item name="backgroundTint">@color/white</item>
+        <item name="android:paddingHorizontal">16dp</item><item name="android:insetTop">3dp</item><item name="android:insetBottom">3dp</item>
+    </style>
+    <style name="LedgerTextButton" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:minHeight">48dp</item><item name="android:textAllCaps">false</item><item name="android:textSize">14sp</item><item name="cornerRadius">12dp</item>
+    </style>
+    <style name="LedgerToggleButton" parent="LedgerOutlineButton">
+        <item name="backgroundTint">@color/ledger_chip_background</item>
+        <item name="android:textColor">@color/ledger_chip_text</item>
+    </style>
+    <style name="LedgerSettingsRow" parent="LedgerTextButton">
+        <item name="android:minHeight">56dp</item><item name="android:gravity">start|center_vertical</item><item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">15sp</item><item name="android:paddingHorizontal">12dp</item><item name="iconSize">21dp</item><item name="iconPadding">14dp</item><item name="iconGravity">textStart</item>
+    </style>
+    <style name="LedgerInput" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">14dp</item><item name="boxCornerRadiusTopEnd">14dp</item><item name="boxCornerRadiusBottomStart">14dp</item><item name="boxCornerRadiusBottomEnd">14dp</item>
+        <item name="boxBackgroundColor">@color/white</item><item name="boxStrokeColor">?attr/colorPrimary</item>
+    </style>
+    <style name="LedgerNavLabel"><item name="android:textSize">12sp</item><item name="android:fontFamily">sans-serif-medium</item></style>
+    <style name="LedgerNavIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:width">56dp</item><item name="android:height">32dp</item><item name="android:color">?attr/ledgerSoft</item>
+    </style>
+<style name="LedgerDropdown" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"><item name="boxCornerRadiusTopStart">14dp</item><item name="boxCornerRadiusTopEnd">14dp</item><item name="boxCornerRadiusBottomStart">14dp</item><item name="boxCornerRadiusBottomEnd">14dp</item><item name="boxBackgroundColor">@color/white</item></style>
+<style name="Theme.LightLedger.Blue" parent="Theme.LightLedger"><item name="colorPrimary">#356E9B</item><item name="colorPrimaryVariant">#204969</item><item name="colorSecondary">#356E9B</item><item name="android:colorAccent">#356E9B</item><item name="colorOnSurface">#243547</item><item name="ledgerBackground">#F3F6FA</item><item name="android:windowBackground">#F3F6FA</item><item name="ledgerSoft">#E6EFF7</item><item name="ledgerMuted">#6B7B8D</item><item name="ledgerBorder">#E1E8F0</item></style>
+<style name="Theme.LightLedger.Apricot" parent="Theme.LightLedger"><item name="colorPrimary">#A65B36</item><item name="colorPrimaryVariant">#6C3A24</item><item name="colorSecondary">#A65B36</item><item name="android:colorAccent">#A65B36</item><item name="colorOnSurface">#3F3028</item><item name="ledgerBackground">#FAF6F1</item><item name="android:windowBackground">#FAF6F1</item><item name="ledgerSoft">#F8EBDD</item><item name="ledgerMuted">#85756A</item><item name="ledgerBorder">#EFE4D8</item></style>
+<style name="Theme.LightLedger.Purple" parent="Theme.LightLedger"><item name="colorPrimary">#795497</item><item name="colorPrimaryVariant">#503969</item><item name="colorSecondary">#795497</item><item name="android:colorAccent">#795497</item><item name="colorOnSurface">#352A40</item><item name="ledgerBackground">#F7F4FA</item><item name="android:windowBackground">#F7F4FA</item><item name="ledgerSoft">#F0E8F7</item><item name="ledgerMuted">#817489</item><item name="ledgerBorder">#E8E0EF</item></style>
+</resources>

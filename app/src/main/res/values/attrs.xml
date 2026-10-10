@@ -1,0 +1,6 @@
+<resources>
+    <attr name="ledgerBackground" format="color" />
+    <attr name="ledgerSoft" format="color" />
+    <attr name="ledgerMuted" format="color" />
+    <attr name="ledgerBorder" format="color" />
+</resources>

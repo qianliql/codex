@@ -1,0 +1,45 @@
+.gradle/
+.kotlin/
+.idea/
+build/
+app/build/
+local.properties
+*.iml
+
+# Installed tools and generated outputs
+platform-tools/
+work/
+outputs/
+*.apk
+*.aab
+*.log
+*.png
+*.jpg
+*.jpeg
+
+# Local signing material, credentials and personal ledger data
+*.keystore
+*.jks
+*.p12
+*.pem
+.env
+.env.*
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.csv
+*backup*.json
+*backup*.tar
+*账单导入*.json
+phone-report.txt
+
+# Private handoff / device records: publish the sanitized docs instead
+AI_HANDOFF.md
+PROJECT_REQUIREMENTS.md
+TESTING.md
+TEMP_FILES.md
+MIGRATION.md
+phone-check.ps1
+run-phone-check.cmd
