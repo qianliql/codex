@@ -12,10 +12,11 @@
                 android:layout_height="wrap_content" android:layout_weight="1"
                 android:text="账单" android:textSize="24sp" />
             <com.google.android.material.button.MaterialButton android:id="@+id/searchFilters"
-                style="@style/LedgerOutlineButton" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:minWidth="56dp" android:minHeight="48dp"
-                android:paddingHorizontal="8dp" android:text="搜索" android:textSize="14sp"
-                android:contentDescription="搜索账单" />
+                style="@style/LedgerOutlineButton" android:layout_width="48dp"
+                android:layout_height="48dp" android:minWidth="0dp" android:minHeight="48dp"
+                android:padding="0dp" android:contentDescription="搜索账单"
+                app:icon="@drawable/ic_search" app:iconSize="22dp" app:iconPadding="0dp"
+                app:iconGravity="textStart" />
             <com.google.android.material.button.MaterialButton android:id="@+id/addTransaction"
                 style="@style/LedgerButton" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginStart="6dp"

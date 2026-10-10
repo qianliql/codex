@@ -275,7 +275,6 @@ class TransactionsFragment : Fragment() {
         val applied = filter
         b.filterSummary.visibility = if (applied.activeCount > 0) View.VISIBLE else View.GONE
         b.recordsTitle.text = if (applied.activeCount > 0) "搜索结果" else "全部记录"
-        b.searchFilters.text = "搜索"
         b.searchFilters.contentDescription = "搜索账单，已选 ${applied.activeCount} 项条件"
         summaryJob?.cancel()
         b.filterDescription.text = applied.description(emptyList(), emptyList())

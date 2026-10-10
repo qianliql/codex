@@ -312,7 +312,7 @@ class LayoutCompatibilityTest {
         val directory = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
-        val file = File(directory, "LightLedger-0.5.4-$name.png")
+        val file = File(directory, "LightLedger-0.5.5-$name.png")
         file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
