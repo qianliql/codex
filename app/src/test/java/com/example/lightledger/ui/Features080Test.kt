@@ -258,6 +258,6 @@ class Features080Test {
         val dir = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888); root.draw(Canvas(bitmap))
         val suffix = if (RuntimeEnvironment.getApiLevel() == 29) "" else "-api${RuntimeEnvironment.getApiLevel()}"
-        File(dir, "LightLedger-0.9.0-$name$suffix.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        File(dir, "LightLedger-0.9.1-$name$suffix.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
     }
 }

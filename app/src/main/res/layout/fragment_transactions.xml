@@ -1,100 +1,39 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="?attr/ledgerBackground" android:orientation="vertical"
-    android:paddingHorizontal="@dimen/ledger_page_gutter" android:paddingTop="4dp">
-    <LinearLayout android:id="@+id/normalActions" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:orientation="vertical">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:gravity="end|center_vertical" android:orientation="horizontal">
-            <TextView android:id="@+id/billPageTitle" style="@style/LedgerPageTitle" android:layout_width="0dp"
-                android:layout_height="wrap_content" android:layout_weight="1"
-                android:text="账单" android:textSize="24sp" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/searchFilters"
-                style="@style/LedgerOutlineButton" android:layout_width="48dp"
-                android:layout_height="48dp" android:minWidth="0dp" android:minHeight="48dp"
-                android:padding="0dp" android:contentDescription="搜索账单"
-                app:icon="@drawable/ic_search" app:iconSize="22dp" app:iconPadding="0dp"
-                app:iconGravity="textStart" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/resetSearch"
-                style="@style/LedgerTextButton" android:layout_width="wrap_content"
-                android:layout_height="48dp" android:layout_marginStart="4dp"
-                android:minWidth="56dp" android:minHeight="48dp" android:paddingHorizontal="6dp"
-                android:text="重置" android:textSize="14sp" android:maxLines="1"
-                android:contentDescription="重置搜索条件，查看所选月份的账单" android:visibility="gone" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/addTransaction"
-                style="@style/LedgerButton" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:layout_marginStart="6dp"
-                android:minWidth="72dp" android:minHeight="48dp" android:paddingHorizontal="10dp"
-                android:text="记一笔" android:textSize="14sp" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/moreActions"
-                style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp"
-                android:minWidth="0dp" android:padding="0dp" android:contentDescription="更多账单操作"
-                app:icon="@drawable/ic_more" app:iconSize="24dp" app:iconPadding="0dp"
-                app:iconGravity="textStart" />
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="?attr/ledgerBackground" android:orientation="vertical" android:paddingHorizontal="@dimen/ledger_page_gutter" android:paddingTop="4dp">
+    <LinearLayout android:id="@+id/normalActions" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton style="@style/LedgerTextButton" android:id="@+id/billBack" android:layout_width="48dp" android:layout_height="48dp" android:padding="0dp" android:minWidth="0dp" android:contentDescription="返回首页" app:icon="@drawable/ic_arrow_left" app:iconGravity="textStart" app:iconPadding="0dp" />
+            <TextView android:id="@+id/billPageTitle" style="@style/LedgerPageTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="账单" android:textSize="20sp" android:maxLines="1" android:ellipsize="end" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/searchFilters" style="@style/LedgerOutlineButton" android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:minHeight="48dp" android:padding="0dp" android:contentDescription="搜索账单" app:icon="@drawable/ic_search" app:iconSize="22dp" app:iconPadding="0dp" app:iconGravity="textStart" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/resetSearch" style="@style/LedgerTextButton" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="4dp" android:minWidth="48dp" android:minHeight="48dp" android:paddingHorizontal="4dp" android:text="重置" android:textSize="13sp" android:maxLines="1" android:contentDescription="重置搜索条件，查看所选月份的账单" android:visibility="gone" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/addTransaction" style="@style/LedgerButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:minWidth="64dp" android:minHeight="48dp" android:paddingHorizontal="6dp" android:text="记一笔" android:textSize="13sp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/moreActions" style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:padding="0dp" android:contentDescription="更多账单操作" app:icon="@drawable/ic_more" app:iconSize="24dp" app:iconPadding="0dp" app:iconGravity="textStart" />
         </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
-            android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
-            android:gravity="center_vertical" android:orientation="horizontal">
-            <com.google.android.material.button.MaterialButton android:id="@+id/previousMonth"
-                style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp"
-                android:minWidth="0dp" android:padding="0dp" android:contentDescription="上个月"
-                app:icon="@drawable/ic_arrow_left" app:iconSize="22dp" app:iconPadding="0dp" app:iconGravity="textStart" />
-            <LinearLayout android:id="@+id/billMonthPicker" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="56dp"
-                android:layout_weight="1" android:orientation="vertical" android:gravity="center"
-                android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground"
-                android:contentDescription="选择账单年份和月份">
-                <TextView android:id="@+id/billMonthLabel" style="@style/LedgerSectionTitle"
-                    android:layout_width="match_parent" android:layout_height="wrap_content" android:text="选择月份 ▾"
-                    android:gravity="center" android:textSize="16sp" android:maxLines="1" android:ellipsize="end" />
-                <TextView android:id="@+id/resultCount" style="@style/LedgerCaption"
-                    android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center"
-                    android:textSize="11sp" android:lineSpacingExtra="0dp" android:includeFontPadding="false" android:maxLines="1" android:ellipsize="end" android:text="下拉刷新 · 长按多选" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp" android:gravity="center_vertical" android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton android:id="@+id/previousMonth" style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:padding="0dp" android:contentDescription="上个月" app:icon="@drawable/ic_arrow_left" app:iconSize="22dp" app:iconPadding="0dp" app:iconGravity="textStart" />
+            <LinearLayout android:id="@+id/billMonthPicker" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="56dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground" android:contentDescription="选择账单年份和月份">
+                <TextView android:id="@+id/billMonthLabel" style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="选择月份 ▾" android:gravity="center" android:textSize="16sp" android:maxLines="1" android:ellipsize="end" />
+                <TextView android:id="@+id/resultCount" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:textSize="11sp" android:lineSpacingExtra="0dp" android:includeFontPadding="false" android:maxLines="1" android:ellipsize="end" android:text="下拉刷新 · 长按多选" />
             </LinearLayout>
-            <com.google.android.material.button.MaterialButton android:id="@+id/nextMonth"
-                style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp"
-                android:minWidth="0dp" android:padding="0dp" android:contentDescription="下个月"
-                app:icon="@drawable/ic_arrow" app:iconSize="22dp" app:iconPadding="0dp" app:iconGravity="textStart" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/nextMonth" style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:padding="0dp" android:contentDescription="下个月" app:icon="@drawable/ic_arrow" app:iconSize="22dp" app:iconPadding="0dp" app:iconGravity="textStart" />
         </LinearLayout>
     </LinearLayout>
-    <com.google.android.material.card.MaterialCardView android:id="@+id/selectionBar"
-        style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp" android:visibility="gone" app:cardCornerRadius="16dp"
-        app:cardBackgroundColor="?attr/ledgerSoft">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:paddingHorizontal="8dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center_vertical" android:orientation="horizontal">
-                <TextView android:id="@+id/selectionCount" style="@style/LedgerSectionTitle"
-                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                    android:text="已选 0 笔" android:textSize="16sp" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/cancelSelection"
-                    style="@style/LedgerTextButton" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:text="完成" />
+    <com.google.android.material.card.MaterialCardView android:id="@+id/selectionBar" style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:visibility="gone" app:cardCornerRadius="16dp" app:cardBackgroundColor="?attr/ledgerSoft">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="8dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                <TextView android:id="@+id/selectionCount" style="@style/LedgerSectionTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="已选 0 笔" android:textSize="16sp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/cancelSelection" style="@style/LedgerTextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="完成" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal">
-                <com.google.android.material.button.MaterialButton android:id="@+id/selectLoaded"
-                    style="@style/LedgerOutlineButton" android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:minHeight="48dp" android:text="全选已加载" android:textSize="14sp" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/deleteSelected"
-                    style="@style/LedgerButton" android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:layout_marginStart="8dp" android:minHeight="48dp"
-                    android:text="删除（0）" android:textSize="14sp" app:backgroundTint="@color/ledger_orange" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                <com.google.android.material.button.MaterialButton android:id="@+id/selectLoaded" style="@style/LedgerOutlineButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="48dp" android:text="全选已加载" android:textSize="14sp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/deleteSelected" style="@style/LedgerButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:minHeight="48dp" android:text="删除（0）" android:textSize="14sp" app:backgroundTint="@color/ledger_orange" />
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout android:id="@+id/refreshBills"
-        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout android:id="@+id/refreshBills" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
         <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
-            <androidx.recyclerview.widget.RecyclerView android:id="@+id/transactionList"
-                android:layout_width="match_parent" android:layout_height="match_parent"
-                android:clipToPadding="false" android:paddingBottom="8dp" />
-            <TextView android:id="@+id/emptyTransactions" style="@style/LedgerCaption"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="16dp" android:gravity="center" android:background="@drawable/bg_list_row"
-                android:padding="24dp" android:text="还没有账单，记下第一笔吧" android:visibility="gone" />
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/transactionList" android:layout_width="match_parent" android:layout_height="match_parent" android:clipToPadding="false" android:paddingBottom="8dp" />
+            <TextView android:id="@+id/emptyTransactions" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:background="@drawable/bg_list_row" android:padding="24dp" android:text="还没有账单，记下第一笔吧" android:visibility="gone" />
         </FrameLayout>
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 </LinearLayout>

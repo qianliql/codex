@@ -103,6 +103,7 @@ class TransactionsFragment : Fragment() {
         b.transactionList.adapter = adapter
         b.transactionList.addOnScrollListener(pagingScroll)
         adapter?.submitList(rows.toList())
+        b.billBack.setOnClickListener { requireActivity().onBackPressedDispatcher.onBackPressed() }
         b.addTransaction.setOnClickListener { startActivity(Intent(requireContext(), TransactionEditorActivity::class.java)) }
         b.moreActions.setOnClickListener { showMoreActions() }
         b.searchFilters.setOnClickListener { showFilters() }

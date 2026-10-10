@@ -24,9 +24,10 @@ internal object EditorChoiceRows {
         val gap = group.chipSpacingHorizontal
         val minimum = chips.firstOrNull()?.let { ceil(it.paint.measureText("分类") + 31 * density).toInt() }
             ?: (64 * density).toInt()
-        val width = max(minimum, (available - 3 * gap) / 4)
         val count = chips.count { it.visibility != android.view.View.GONE }
         val columns = max(1, (count + 1) / 2)
+        val viewportColumns = columns.coerceAtMost(4)
+        val width = max(minimum, (available - (viewportColumns - 1) * gap) / viewportColumns)
         val total = columns * width + (columns - 1) * gap
         if (group.layoutParams.width != total) group.layoutParams = group.layoutParams.apply { this.width = total }
         chips.forEach {

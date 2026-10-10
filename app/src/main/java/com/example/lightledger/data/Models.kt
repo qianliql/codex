@@ -6,6 +6,16 @@ enum class TransactionType { EXPENSE, INCOME, REFUND, TRANSFER }
 enum class PaymentMethod { WECHAT, ALIPAY, BANK_CARD, CASH, OTHER }
 enum class TransactionSource { NOTIFICATION, SCREENSHOT, MANUAL }
 enum class ClassificationStatus { CLASSIFIED, UNCLASSIFIED, NEED_CONFIRM }
+enum class CategoryScope {
+    EXPENSE, INCOME, BOTH;
+    companion object {
+        fun defaultFor(name: String) = when (name) {
+            in CategoryCatalog.incomeDefaults -> INCOME
+            "其他" -> BOTH
+            else -> EXPENSE
+        }
+    }
+}
 
 class LedgerConverters {
     @TypeConverter fun type(value: String): TransactionType = enumValueOf(value)
@@ -16,6 +26,8 @@ class LedgerConverters {
     @TypeConverter fun source(value: TransactionSource): String = value.name
     @TypeConverter fun status(value: String): ClassificationStatus = enumValueOf(value)
     @TypeConverter fun status(value: ClassificationStatus): String = value.name
+    @TypeConverter fun scope(value: String): CategoryScope = enumValueOf(value)
+    @TypeConverter fun scope(value: CategoryScope): String = value.name
 }
 
 @Entity(tableName = "categories", indices = [Index(value = ["name"], unique = true)])
@@ -26,6 +38,7 @@ data class Category(
     @ColumnInfo(defaultValue = "1") val priority: Int = 1,
     @ColumnInfo(defaultValue = "0") val sortOrder: Int = 0,
     @ColumnInfo(defaultValue = "'auto'") val iconKey: String = "auto",
+    @ColumnInfo(defaultValue = "'EXPENSE'") val scope: CategoryScope = CategoryScope.defaultFor(name),
 )
 
 @Entity(tableName = "tags", indices = [Index(value = ["name"], unique = true)])

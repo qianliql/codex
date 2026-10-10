@@ -46,7 +46,7 @@ interface LedgerDao {
         require(category.priority in 0..2) { "分类优先级无效" }
         val existing = categoryList()
         require(existing.none { it.name == category.name && it.id != category.id }) { "这个名称已存在，请换一个" }
-        require(existing.count { it.id != category.id && it.name != CategoryCatalog.unclassified && it.priority == category.priority } < CategoryPriority.limit(category.priority)) {
+        require(category.scope == CategoryScope.INCOME || existing.count { it.scope != CategoryScope.INCOME && it.id != category.id && it.name != CategoryCatalog.unclassified && it.priority == category.priority } < CategoryPriority.limit(category.priority)) {
             "${CategoryPriority.label(category.priority)}最多${CategoryPriority.limit(category.priority)}个，请先把已有分类移到其他分组"
         }
         val previous = existing.firstOrNull { it.id == category.id }
@@ -57,7 +57,9 @@ interface LedgerDao {
     @Transaction suspend fun moveCategory(id: Long, delta: Int) {
         val all = categoryList()
         val selected = all.firstOrNull { it.id == id } ?: return
-        val group = CategoryPriority.ordered(all).filter { it.priority == selected.priority && it.name != CategoryCatalog.unclassified }.toMutableList()
+        val group = (if (selected.scope == CategoryScope.INCOME) all.filter { it.scope == CategoryScope.INCOME }
+            .sortedWith(compareBy<Category> { it.sortOrder }.thenBy { it.id }) else
+            CategoryPriority.ordered(all).filter { it.scope != CategoryScope.INCOME && it.priority == selected.priority && it.name != CategoryCatalog.unclassified }).toMutableList()
         val from = group.indexOfFirst { it.id == id }
         val to = from + delta
         if (from < 0 || to !in group.indices) return
@@ -178,7 +180,7 @@ interface LedgerDao {
     @Insert suspend fun insertTransaction(transaction: LedgerTransaction): Long
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertNotification(transaction: LedgerTransaction): Long
-    @Query("UPDATE transactions SET categoryId = :categoryId, classificationStatus = 'CLASSIFIED', updatedAt = :now WHERE id = :transactionId AND type = 'EXPENSE' AND amountCents > 0 AND classificationStatus IN ('UNCLASSIFIED', 'NEED_CONFIRM') AND EXISTS (SELECT 1 FROM categories WHERE id = :categoryId)")
+    @Query("UPDATE transactions SET categoryId = :categoryId, classificationStatus = 'CLASSIFIED', updatedAt = :now WHERE id = :transactionId AND type = 'EXPENSE' AND amountCents > 0 AND classificationStatus IN ('UNCLASSIFIED', 'NEED_CONFIRM') AND EXISTS (SELECT 1 FROM categories WHERE id = :categoryId AND scope != 'INCOME')")
     suspend fun classifyExpense(transactionId: Long, categoryId: Long, now: Long): Int
     @Update suspend fun updateTransaction(transaction: LedgerTransaction)
     @Delete suspend fun deleteTransaction(transaction: LedgerTransaction)

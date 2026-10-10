@@ -4,15 +4,16 @@ import com.example.lightledger.data.*
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Backup v2 is self-contained; parsing and validation finish before any database row is replaced. */
+/** Backup v3 preserves income/expense category membership, including renamed categories. */
 object BackupCodec {
     private fun JSONObject.putNullable(key: String, value: String?) { put(key, value ?: JSONObject.NULL) }
     private fun JSONObject.putNullable(key: String, value: Long?) { put(key, value ?: JSONObject.NULL) }
 
     fun encode(data: LedgerSnapshot): String = JSONObject().apply {
-        put("schemaVersion", 2)
+        put("schemaVersion", 3)
         put("categories", JSONArray().apply { data.categories.forEach { c -> put(JSONObject().apply {
             put("id", c.id); put("name", c.name); put("isSystem", c.isSystem); put("priority", c.priority); put("sortOrder", c.sortOrder); put("iconKey", c.iconKey)
+            put("scope", c.scope.name)
         }) } })
         put("transactions", JSONArray().apply { data.transactions.forEach { t -> put(JSONObject().apply {
             put("id", t.id); put("amountCents", t.amountCents); put("type", t.type.name)
@@ -34,7 +35,7 @@ object BackupCodec {
 
     fun decode(json: String): LedgerSnapshot {
         val root = JSONObject(json)
-        require(root.getInt("schemaVersion") in 1..2) { "不支持的备份版本" }
+        require(root.getInt("schemaVersion") in 1..3) { "不支持的备份版本" }
         fun <T> rows(key: String, convert: (JSONObject) -> T): List<T> {
             val array = root.getJSONArray(key)
             return (0 until array.length()).map { convert(array.getJSONObject(it)) }
@@ -42,7 +43,7 @@ object BackupCodec {
         fun JSONObject.nullableString(key: String): String? = if (isNull(key)) null else getString(key)
         fun JSONObject.nullableLong(key: String): Long? = if (isNull(key)) null else getLong(key)
         val snapshot = LedgerSnapshot(
-            categories = rows("categories") { Category(it.getLong("id"), it.getString("name"), it.getBoolean("isSystem"), it.optInt("priority", CategoryPriority.defaultFor(it.getString("name"))), it.optInt("sortOrder", CategoryCatalog.primary.indexOf(it.getString("name")).takeIf { n -> n >= 0 } ?: 100), it.optString("iconKey", "auto")) },
+            categories = rows("categories") { Category(it.getLong("id"), it.getString("name"), it.getBoolean("isSystem"), it.optInt("priority", CategoryPriority.defaultFor(it.getString("name"))), it.optInt("sortOrder", CategoryCatalog.primary.indexOf(it.getString("name")).takeIf { n -> n >= 0 } ?: 100), it.optString("iconKey", "auto"), CategoryScope.valueOf(it.optString("scope", CategoryScope.defaultFor(it.getString("name")).name))) },
             transactions = rows("transactions") { t -> LedgerTransaction(
                 id = t.getLong("id"), amountCents = t.getLong("amountCents"), type = TransactionType.valueOf(t.getString("type")),
                 merchant = t.nullableString("merchant"), categoryId = t.nullableLong("categoryId"),
@@ -57,7 +58,13 @@ object BackupCodec {
             settings = rows("settings") { AppSetting(it.getString("key"), it.getString("value")) },
         )
         validate(snapshot)
-        return CategoryNormalization.withoutHousehold(snapshot)
+        val normalized = CategoryNormalization.withoutHousehold(snapshot)
+        if (root.getInt("schemaVersion") >= 3 || normalized.categories.isEmpty()) return normalized
+        var nextId = normalized.categories.maxOf { it.id }
+        val added = CategoryCatalog.incomeDefaults.filter { name -> normalized.categories.none { it.name == name } }
+            .mapIndexed { index, name -> Category(id = ++nextId, name = name, isSystem = true,
+                priority = CategoryPriority.OCCASIONAL, sortOrder = index, scope = CategoryScope.INCOME) }
+        return normalized.copy(categories = normalized.categories + added)
     }
 
     private fun validate(data: LedgerSnapshot) {
@@ -66,7 +73,7 @@ object BackupCodec {
         val transactionIds = data.transactions.map { it.id }
         val tagIds = data.tags.map { it.id }
         require(data.categories.all { it.priority in 0..2 }) { "分类优先级无效" }
-        require(listOf(0, 1).all { p -> data.categories.count { it.priority == p && it.name != CategoryCatalog.unclassified } <= CategoryPriority.limit(p) }) { "常用分类数量超过限制" }
+        require(listOf(0, 1).all { p -> data.categories.count { it.scope != CategoryScope.INCOME && it.priority == p && it.name != CategoryCatalog.unclassified } <= CategoryPriority.limit(p) }) { "常用分类数量超过限制" }
         require(unique(categoryIds) && unique(transactionIds) && unique(tagIds) &&
             unique(data.merchantRules.map { it.id }) && unique(data.settings.map { it.key })) { "备份含重复 ID" }
         require(categoryIds.all { it > 0 } && transactionIds.all { it > 0 } && tagIds.all { it > 0 }) { "备份 ID 无效" }

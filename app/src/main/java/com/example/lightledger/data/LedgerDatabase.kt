@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [LedgerTransaction::class, Category::class, Tag::class, TransactionTagCrossRef::class, MerchantRule::class, AppSetting::class], version = 7, exportSchema = true)
+@Database(entities = [LedgerTransaction::class, Category::class, Tag::class, TransactionTagCrossRef::class, MerchantRule::class, AppSetting::class], version = 8, exportSchema = true)
 @TypeConverters(LedgerConverters::class)
 abstract class LedgerDatabase : RoomDatabase() {
     abstract fun dao(): LedgerDao
@@ -66,16 +66,28 @@ abstract class LedgerDatabase : RoomDatabase() {
                 }
             }
         }
+        internal val migration7To8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE categories ADD COLUMN scope TEXT NOT NULL DEFAULT 'EXPENSE'")
+                db.execSQL("UPDATE categories SET scope='BOTH' WHERE name='其他'")
+                CategoryCatalog.incomeDefaults.forEachIndexed { index, name ->
+                    db.execSQL("UPDATE categories SET scope='INCOME' WHERE name=?", arrayOf(name))
+                    // A deliberately empty category list stays empty after an upgrade.
+                    db.execSQL("INSERT OR IGNORE INTO categories(name,isSystem,priority,sortOrder,iconKey,scope) SELECT ?,1,2,?,'auto','INCOME' WHERE EXISTS(SELECT 1 FROM categories)", arrayOf<Any>(name, index))
+                }
+            }
+        }
         @Volatile private var instance: LedgerDatabase? = null
         fun get(context: Context): LedgerDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, "ledger.db")
-                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6, migration6To7)
+                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6, migration6To7, migration7To8)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
-                        (CategoryCatalog.primary + CategoryCatalog.unclassified)
+                        (CategoryCatalog.primary + CategoryCatalog.unclassified + CategoryCatalog.incomeDefaults)
                             .forEachIndexed { index, name ->
-                                db.execSQL("INSERT INTO categories(name, isSystem, priority, sortOrder, iconKey) VALUES(?, 1, ?, ?, 'auto')", arrayOf<Any>(name, CategoryPriority.defaultFor(name), index))
+                                val order = CategoryCatalog.incomeDefaults.indexOf(name).takeIf { it >= 0 } ?: index
+                                db.execSQL("INSERT INTO categories(name, isSystem, priority, sortOrder, iconKey, scope) VALUES(?, 1, ?, ?, 'auto', ?)", arrayOf<Any>(name, CategoryPriority.defaultFor(name), order, CategoryScope.defaultFor(name).name))
                             }
                     }
                 }).build().also { instance = it }

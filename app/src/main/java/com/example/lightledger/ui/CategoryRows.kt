@@ -24,7 +24,7 @@ object CategoryIcons {
             "宠物" -> "pet"
             "运动", "健身" -> "sport"
             "旅行", "旅游" -> "travel"
-            "礼物", "人情", "社交" -> "gift"
+            "礼物", "人情", "社交", "奖金" -> "gift"
             "工作", "办公", "工资" -> "work"
             "维修" -> "repair"
             "住房", "房租" -> "rent"
@@ -33,7 +33,7 @@ object CategoryIcons {
             "数码" -> "device"
             "洗澡" -> "bath"
             "教育", "学习" -> "book"
-            "微信", "支付宝", "银行卡", "现金", "收入" -> "wallet"
+            "微信", "支付宝", "银行卡", "现金", "收入", "生活费" -> "wallet"
             else -> "other"
         }
         return when (resolved) {

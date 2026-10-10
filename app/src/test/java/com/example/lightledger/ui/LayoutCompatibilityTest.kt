@@ -201,7 +201,7 @@ class LayoutCompatibilityTest {
                     // Also include the bottom navigation in the denominator, excluding system bars.
                     val usable = root.height - root.paddingTop - root.paddingBottom
                     assertTrue("$name/$mode: list takes at least two thirds including navigation", list.height * 3 >= usable * 2)
-                    if (mode != "selection") listOf(R.id.searchFilters, R.id.addTransaction, R.id.moreActions, R.id.previousMonth, R.id.nextMonth, R.id.billMonthPicker).forEach { id ->
+                    if (mode != "selection") listOf(R.id.billBack, R.id.searchFilters, R.id.addTransaction, R.id.moreActions, R.id.previousMonth, R.id.nextMonth, R.id.billMonthPicker).forEach { id ->
                         val button = root.findViewById<View>(id)
                         val touch = (48 * root.resources.displayMetrics.density).toInt()
                         assertTrue("toolbar touch target", button.height >= touch && button.width >= touch)
@@ -340,7 +340,7 @@ class LayoutCompatibilityTest {
         val directory = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
-        val file = File(directory, "LightLedger-0.9.0-$name.png")
+        val file = File(directory, "LightLedger-0.9.1-$name.png")
         file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()

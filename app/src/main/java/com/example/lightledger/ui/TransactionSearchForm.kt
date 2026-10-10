@@ -23,21 +23,32 @@ internal class TransactionSearchForm(
     private val chooseDate: (Long, (Long) -> Unit) -> Unit,
     private val apply: (TransactionFilter) -> Unit,
 ) {
-    private var draft = initial
+    private var draft = initial.copy(
+        type = initial.type.takeIf { it == "EXPENSE" || it == "INCOME" }.orEmpty(),
+        method = initial.method.takeUnless { it == "OTHER" }.orEmpty(),
+    )
     private var rendering = false
     private var showOccasional = categories.any { it.id == initial.categoryId && it.priority == CategoryPriority.OCCASIONAL }
     private val tagOptions = listOf(0L to "不限标签") + tags.map { it.id to it.name }
     init {
+        EditorChoiceRows.bindCategories(b.categoryChoices, b.searchCategoryScroll)
+        EditorChoiceRows.bindPayments(b.methodChoices)
         chips(b.datePresets, SearchDatePreset.entries.map { it to it.label }, preset()) { selected ->
             selected.range()?.let { (start, end) -> draft = draft.copy(start = start, end = end) }
             renderDates(); updateCount()
         }
-        chips(b.categoryChoices, listOf(-1L to "不限", 0L to "未分类") + CategoryPriority.ordered(categories).filter { it.name != "未分类" }.map { it.id to it.name }, draft.categoryId, true) {
-            draft = draft.copy(categoryId = it); updateCount()
-        }
         b.expandSearchCategories.setOnClickListener { showOccasional = !showOccasional; renderCategoryVisibility() }
-        chips(b.typeChoices, listOf("" to "不限") + TransactionType.entries.map { it.name to UiFormat.type(it) }, draft.type) { draft = draft.copy(type = it); updateCount() }
-        chips(b.methodChoices, listOf("" to "不限") + PaymentMethod.entries.map { it.name to UiFormat.method(it) }, draft.method) { draft = draft.copy(method = it); updateCount() }
+        b.typeChoices.addOnButtonCheckedListener { group, id, checked ->
+            if (!rendering && (checked || group.checkedButtonId == View.NO_ID)) {
+                draft = draft.copy(type = if (!checked) "" else if (id == R.id.searchIncomeOption) "INCOME" else "EXPENSE")
+                showOccasional = false
+                renderCategories(); updateCount()
+            }
+        }
+        chips(b.methodChoices, PaymentMethod.entries.filter { it != PaymentMethod.OTHER }.map { it.name to UiFormat.method(it) }, draft.method, empty = "") { draft = draft.copy(method = it); updateCount() }
+        EditorChoiceRows.fitPayments(b.methodChoices)
+        b.clearCategory.setOnClickListener { draft = draft.copy(categoryId = -1); select(b.categoryChoices, -1L); updateCount() }
+        b.clearMethod.setOnClickListener { draft = draft.copy(method = ""); select(b.methodChoices, ""); updateCount() }
         chips(b.sourceChoices, listOf("" to "不限") + TransactionSource.entries.map { it.name to TransactionFilter.sourceLabel(it.name) }, draft.source) { draft = draft.copy(source = it); updateCount() }
         b.tagChoice.setAdapter(ArrayAdapter(b.root.context, R.layout.row_filter_dropdown, tagOptions.map { it.second }))
         b.tagChoice.setOnItemClickListener { _, _, position, _ -> draft = draft.copy(tagId = tagOptions[position].first); updateCount() }
@@ -71,29 +82,55 @@ internal class TransactionSearchForm(
         b.additionalFilters.visibility = if (show) View.VISIBLE else View.GONE
         b.moreFilters.text = if (show) "收起更多条件" else "更多条件 · 标签、来源、待处理"
     }
-    private fun updateCount() { val n = snapshot().activeCount; b.conditionCount.text = if (n == 0) "不限制条件，查看全部账单" else "已选 $n 项条件"; }
+    private fun updateCount() {
+        val n = snapshot().activeCount; b.conditionCount.text = if (n == 0) "不限制条件，查看全部账单" else "已选 $n 项条件"
+        b.clearCategory.text = if (draft.categoryId == -1L) "全部" else "清除"
+        b.clearMethod.text = if (draft.method.isBlank()) "全部" else "清除"
+    }
     private fun render() {
         rendering = true
         b.keyword.setText(draft.search)
-        select(b.categoryChoices, draft.categoryId); select(b.methodChoices, draft.method)
-        select(b.typeChoices, draft.type); select(b.sourceChoices, draft.source); select(b.datePresets, preset())
+        renderCategories(); select(b.methodChoices, draft.method)
+        b.typeChoices.clearChecked()
+        if (draft.type.isNotBlank()) b.typeChoices.check(if (draft.type == "INCOME") R.id.searchIncomeOption else R.id.searchExpenseOption)
+        select(b.sourceChoices, draft.source); select(b.datePresets, preset())
         b.tagChoice.setText(tagOptions.firstOrNull { it.first == draft.tagId }?.second ?: "指定标签", false)
         b.pendingOnly.isChecked = draft.pendingOnly
         more(draft.tagId != 0L || draft.source.isNotBlank() || draft.pendingOnly)
         renderDates(); renderCategoryVisibility(); rendering = false; updateCount()
     }
+    private fun categoryOptions(): List<Category> = when (draft.type) {
+        "INCOME" -> CategoryCatalog.choices(categories, TransactionType.INCOME)
+        "EXPENSE" -> CategoryCatalog.choices(categories, TransactionType.EXPENSE)
+        else -> CategoryPriority.ordered(categories).filter { it.name != CategoryCatalog.unclassified }
+    }
+    private fun renderCategories() {
+        val options = categoryOptions()
+        if (draft.categoryId > 0 && options.none { it.id == draft.categoryId }) draft = draft.copy(categoryId = -1)
+        val old = rendering; rendering = true
+        b.categoryChoices.setOnCheckedStateChangeListener(null)
+        b.categoryChoices.removeAllViews()
+        chips(b.categoryChoices, options.map { it.id to it.name } + (0L to "未分类"), draft.categoryId, true, -1L) {
+            draft = draft.copy(categoryId = it); updateCount()
+        }
+        renderCategoryVisibility(); rendering = old
+    }
     private fun renderCategoryVisibility() {
-        val ids = categories.filter { it.priority == CategoryPriority.OCCASIONAL && it.name != CategoryCatalog.unclassified }.map { it.id }.toSet()
+        val ids = if (draft.type == "INCOME") emptySet() else categoryOptions()
+            .filter { it.scope != CategoryScope.INCOME && it.priority == CategoryPriority.OCCASIONAL }.map { it.id }.toSet()
         b.categoryChoices.children.filterIsInstance<Chip>().filter { it.tag in ids }.forEach { it.visibility = if (showOccasional) View.VISIBLE else View.GONE }
         b.expandSearchCategories.visibility = if (ids.isEmpty()) View.GONE else View.VISIBLE
         b.expandSearchCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（${ids.size}）▾"
+        EditorChoiceRows.fitCategories(b.categoryChoices, b.searchCategoryScroll)
+        b.searchCategoryScroll.scrollTo(0, 0)
     }
     private fun select(group: ChipGroup, value: Any) {
         val wasRendering = rendering; rendering = true
+        group.clearCheck()
         group.children.filterIsInstance<Chip>().firstOrNull { it.tag == value }?.isChecked = true
         rendering = wasRendering
     }
-    private fun <T : Any> chips(group: ChipGroup, values: List<Pair<T, String>>, selected: T, icons: Boolean = false, changed: (T) -> Unit) {
+    private fun <T : Any> chips(group: ChipGroup, values: List<Pair<T, String>>, selected: T, icons: Boolean = false, empty: T? = null, changed: (T) -> Unit) {
         val byId = mutableMapOf<Int, T>()
         val context = b.root.context
         val density = context.resources.displayMetrics.density
@@ -113,6 +150,6 @@ internal class TransactionSearchForm(
             }
             byId[chip.id] = value; group.addView(chip)
         }
-        group.setOnCheckedStateChangeListener { _, checked -> if (!rendering) checked.firstOrNull()?.let(byId::get)?.let(changed) }
+        group.setOnCheckedStateChangeListener { _, checked -> if (!rendering) (checked.firstOrNull()?.let(byId::get) ?: empty)?.let(changed) }
     }
 }

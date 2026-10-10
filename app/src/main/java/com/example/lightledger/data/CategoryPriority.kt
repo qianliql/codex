@@ -15,5 +15,5 @@ object CategoryPriority {
     fun limit(priority: Int) = when (priority) { NOTIFICATION -> NOTIFICATION_LIMIT; COMMON -> COMMON_LIMIT; else -> Int.MAX_VALUE }
     fun label(priority: Int) = when (priority) { NOTIFICATION -> "通知栏"; COMMON -> "常用"; else -> "不常用" }
     fun ordered(categories: List<Category>) = categories.sortedWith(compareBy<Category> { it.priority }.thenBy { it.sortOrder }.thenBy { it.id })
-    fun notification(categories: List<Category>) = ordered(categories).filter { it.priority == NOTIFICATION && it.name != CategoryCatalog.unclassified }.take(NOTIFICATION_LIMIT)
+    fun notification(categories: List<Category>) = ordered(categories).filter { it.scope != CategoryScope.INCOME && it.priority == NOTIFICATION && it.name != CategoryCatalog.unclassified }.take(NOTIFICATION_LIMIT)
 }

@@ -36,7 +36,7 @@ class CategoryActivity : LedgerActivity() {
         binding = ActivityCategoryBinding.inflate(layoutInflater)
         setContentView(binding.root)
         SystemBarInsets.apply(binding.root)
-        dragTargets = CategoryDragTargets(binding.categoryDragHost, { categories }, categoryDragStarter) { category, priority ->
+        dragTargets = CategoryDragTargets(binding.categoryDragHost, { categories.filter { it.scope != CategoryScope.INCOME } }, categoryDragStarter) { category, priority ->
             lifecycleScope.launch {
                 try {
                     val current = repository.categoryList().firstOrNull { it.id == category.id } ?: return@launch
@@ -53,7 +53,7 @@ class CategoryActivity : LedgerActivity() {
         val container = binding.categoryContainer
         container.removeAllViews()
         (0..2).forEach { priority ->
-            val group = CategoryPriority.ordered(categories).filter { it.priority == priority && it.name != CategoryCatalog.unclassified }
+            val group = CategoryPriority.ordered(categories).filter { it.scope != CategoryScope.INCOME && it.priority == priority && it.name != CategoryCatalog.unclassified }
             val limit = CategoryPriority.limit(priority)
             val heading = CategoryPriority.label(priority) + if (priority == 2) " · ${group.size}" else " · ${group.size}/$limit"
             if (priority == 2) {
@@ -82,6 +82,19 @@ class CategoryActivity : LedgerActivity() {
             if (group.isEmpty() && priority != 2) container.addView(TextView(this).apply {
                 text = "暂无分类"; textSize = 13f; setPadding(0, 0, 0, dp(12)); setTextColor(context.ledgerColor(R.color.ledger_muted))
             })
+        }
+        val income = CategoryCatalog.choices(categories, TransactionType.INCOME).filter { it.scope == CategoryScope.INCOME }
+        if (income.isNotEmpty()) container.addView(TextView(this).apply {
+            text = "收入分类"; textSize = 15f; setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setTextColor(context.ledgerColor(R.color.ledger_ink)); setPadding(0, dp(16), 0, dp(12))
+        })
+        income.forEachIndexed { index, category ->
+            val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
+            item.categoryName.text = category.name
+            CategoryIcons.apply(item.categoryIcon, category.name, category.iconKey)
+            item.root.setOnClickListener { editCategory(category) }
+            item.editIcon.setOnClickListener { showActions(it, category, index, income.size) }
+            container.addView(item.root)
         }
         categories.firstOrNull { it.name == CategoryCatalog.unclassified }?.let { category ->
             val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
@@ -125,11 +138,15 @@ class CategoryActivity : LedgerActivity() {
         listOf(b.notificationPriority, b.commonPriority, b.occasionalPriority).forEachIndexed { priority, button ->
             // ToggleGroup applies a one-line default when children are added; restore the two-line cards.
             button.setSingleLine(false); button.maxLines = 2; button.ellipsize = null
-            val count = categories.count { it.priority == priority && it.name != CategoryCatalog.unclassified }
+            val count = categories.count { it.scope != CategoryScope.INCOME && it.priority == priority && it.name != CategoryCatalog.unclassified }
             val limit = CategoryPriority.limit(priority)
             button.isEnabled = category?.priority == priority || count < limit
             button.text = CategoryPriority.label(priority) + "\n" + if (priority == 2) "折叠" else if (!button.isEnabled) "已满" else "$count / $limit"
             button.contentDescription = "${CategoryPriority.label(priority)}，$count 个${if (button.isEnabled) "" else "，已满不可选"}"
+        }
+        if (category?.scope == CategoryScope.INCOME) {
+            b.priorityHeading.visibility = View.GONE
+            b.priorityChoices.visibility = View.GONE
         }
         b.categoryName.doAfterTextChanged { b.nameInput.error = null; b.categoryError.visibility = View.GONE; updateIcon() }
         b.priorityChoices.addOnButtonCheckedListener { _, _, _ -> b.categoryError.visibility = View.GONE }
@@ -141,7 +158,8 @@ class CategoryActivity : LedgerActivity() {
                 val name = b.categoryName.text.toString().trim()
                 if (name.isBlank()) { b.nameInput.error = "请输入分类名称"; return@setOnClickListener }
                 if (name == "家居" || name == CategoryCatalog.unclassified) { b.nameInput.error = "请换一个名称，家居已归入其他"; return@setOnClickListener }
-                val priority = when (b.priorityChoices.checkedButtonId) { R.id.notificationPriority -> 0; R.id.commonPriority -> 1; else -> 2 }
+                val priority = if (category?.scope == CategoryScope.INCOME) category.priority else
+                    when (b.priorityChoices.checkedButtonId) { R.id.notificationPriority -> 0; R.id.commonPriority -> 1; else -> 2 }
                 save.isEnabled = false
                 lifecycleScope.launch {
                     try {

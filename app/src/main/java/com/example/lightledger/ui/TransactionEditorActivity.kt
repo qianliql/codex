@@ -34,6 +34,7 @@ class TransactionEditorActivity : LedgerActivity() {
     private var selectedType = TransactionType.EXPENSE
     private var specialType = TransactionType.REFUND
     private var selectedCategoryId: Long? = null
+    private val typeCategories = mutableMapOf<TransactionType, Long?>()
     private var selectedPaymentMethod = PaymentMethod.WECHAT
     private val categoryChips = mutableMapOf<Long, Chip>()
     private val paymentChips = mutableMapOf<PaymentMethod, Chip>()
@@ -52,6 +53,7 @@ class TransactionEditorActivity : LedgerActivity() {
         binding.amount.doAfterTextChanged { binding.amountInput.error = null }
         binding.typeToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
+            typeCategories[selectedType] = selectedCategoryId
             selectedType = when (checkedId) {
                 R.id.incomeOption -> TransactionType.INCOME
                 R.id.specialTypeOption -> specialType
@@ -60,6 +62,16 @@ class TransactionEditorActivity : LedgerActivity() {
             binding.refundLink.visibility = if (selectedType == TransactionType.REFUND) View.VISIBLE else View.GONE
             binding.rememberMerchant.visibility = if (selectedType == TransactionType.EXPENSE) View.VISIBLE else View.GONE
             binding.amountLabel.text = "${UiFormat.type(selectedType)}金额（元）"
+            val paymentHost = if (selectedType == TransactionType.INCOME) binding.additionalDetails else binding.primaryPayment
+            if (binding.paymentChoices.parent != paymentHost) {
+                (binding.paymentChoices.parent as android.view.ViewGroup).removeView(binding.paymentChoices)
+                paymentHost.addView(binding.paymentChoices, 0)
+            }
+            selectedCategoryId = if (typeCategories.containsKey(selectedType)) typeCategories[selectedType]
+                else categories.firstOrNull { it.name == "其他" }?.id
+            showOccasional = false
+            if (selectedType == TransactionType.INCOME) showMoreDetails(false)
+            showCategoryChoices()
         }
         binding.typeToggle.check(R.id.expenseOption)
         showPaymentChoices()
@@ -84,9 +96,7 @@ class TransactionEditorActivity : LedgerActivity() {
                 updateRefundLabel()
             } else if (intent.action == ACTION_SCREENSHOT_CONFIRM) {
                 showScreenshotDraft()
-                repository.suggestedCategory(binding.merchant.text?.toString())?.let { id ->
-                    selectCategory(id)
-                }
+                if (selectedType == TransactionType.EXPENSE) repository.suggestedCategory(binding.merchant.text?.toString())?.let(::selectCategory)
             } else {
                 selectCategory(categories.firstOrNull { it.name == "其他" }?.id)
             }
@@ -118,7 +128,7 @@ class TransactionEditorActivity : LedgerActivity() {
     }
 
     private fun showExisting(t: LedgerTransaction) {
-        showMoreDetails(true)
+        showMoreDetails(false)
         binding.pageTitle.text = "编辑账单"
         binding.amount.setText(if (t.amountCents == 0L && t.classificationStatus == ClassificationStatus.NEED_CONFIRM) "" else BigDecimal.valueOf(t.amountCents, 2).toPlainString())
         setType(t.type)
@@ -153,14 +163,17 @@ class TransactionEditorActivity : LedgerActivity() {
     }
 
     private fun showCategoryChoices() {
+        val selection = selectedCategoryId
         binding.categoryChips.removeAllViews()
         categoryChips.clear()
-        CategoryPriority.ordered(categories).filter { it.name != CategoryCatalog.unclassified }.forEach(::addCategoryChip)
+        CategoryCatalog.choices(categories, selectedType).forEach(::addCategoryChip)
         updateCategoryVisibility()
+        selectCategory(selection)
     }
 
     private fun updateCategoryVisibility() {
-        val occasional = categories.filter { it.priority == CategoryPriority.OCCASIONAL && it.name != CategoryCatalog.unclassified }
+        val occasional = if (selectedType == TransactionType.INCOME) emptyList() else
+            CategoryCatalog.choices(categories, selectedType).filter { it.priority == CategoryPriority.OCCASIONAL }
         occasional.forEach { category -> categoryChips[category.id]?.visibility = if (showOccasional) View.VISIBLE else View.GONE }
         binding.expandCategories.visibility = if (occasional.isEmpty()) View.GONE else View.VISIBLE
         binding.expandCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（${occasional.size}）▾"
@@ -224,7 +237,8 @@ class TransactionEditorActivity : LedgerActivity() {
             return
         }
         if (categoryId !in categoryChips) categories.firstOrNull { it.id == categoryId }?.let(::addCategoryChip)
-        if (categories.any { it.id == categoryId && it.priority == CategoryPriority.OCCASIONAL }) { showOccasional = true; updateCategoryVisibility() }
+        if (selectedType != TransactionType.INCOME && categories.any { it.id == categoryId && it.priority == CategoryPriority.OCCASIONAL }) { showOccasional = true; updateCategoryVisibility() }
+        EditorChoiceRows.fitCategories(binding.categoryChips, binding.categoryScroll)
         categoryChips[categoryId]?.let { chip ->
             chip.isChecked = true
             binding.categoryChips.doOnLayout { binding.categoryScroll.scrollTo((chip.right - binding.categoryScroll.width).coerceAtLeast(0), 0) }

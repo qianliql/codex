@@ -80,8 +80,11 @@ class LedgerRepository(private val dao: LedgerDao) {
     suspend fun addMerchantRule(keyword: String, categoryId: Long, exactMatch: Boolean) =
         dao.insertMerchantRule(MerchantRule(keyword = keyword.trim(), categoryId = categoryId, exactMatch = exactMatch))
     suspend fun deleteMerchantRule(rule: MerchantRule) = dao.deleteMerchantRule(rule)
-    suspend fun suggestedCategory(merchant: String?) =
-        com.example.lightledger.classification.MerchantRuleEngine.categoryFor(merchant, dao.merchantRules())
+    suspend fun suggestedCategory(merchant: String?): Long? {
+        val validIds = dao.categoryList().filter { it.scope != CategoryScope.INCOME }.map { it.id }.toSet()
+        return com.example.lightledger.classification.MerchantRuleEngine.categoryFor(merchant,
+            dao.merchantRules().filter { it.categoryId in validIds })
+    }
     suspend fun refundCandidates(refund: LedgerTransaction): List<LedgerTransaction> {
         val start = refund.timestamp - 90L * 24 * 60 * 60 * 1000
         return com.example.lightledger.refund.RefundMatcher.candidates(refund,
