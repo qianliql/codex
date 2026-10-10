@@ -6,7 +6,6 @@
     </LinearLayout>
     <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/ledger_page_gutter">
-            <TextView style="@style/LedgerPageTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="给账本换个心情" android:textSize="26sp" />
             <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="选择喜欢的颜色组合，点击即可切换。下次打开会保留你的选择。" />
             <LinearLayout android:id="@+id/themeChoices" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:orientation="vertical" />
         </LinearLayout>

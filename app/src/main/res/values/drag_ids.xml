@@ -1,0 +1,5 @@
+<resources>
+    <item type="id" name="dropNotificationPriority" />
+    <item type="id" name="dropCommonPriority" />
+    <item type="id" name="dropOccasionalPriority" />
+</resources>

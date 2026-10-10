@@ -11,6 +11,8 @@ class LedgerRepository(private val dao: LedgerDao) {
     fun categoryTotals(start: Long, end: Long) = dao.categoryTotals(start, end)
     suspend fun categoryList() = dao.categoryList()
     suspend fun transaction(id: Long) = dao.transaction(id)
+    suspend fun expenseRank(start: Long, end: Long, categoryId: Long, limit: Int, offset: Int) = dao.expenseRank(start, end, categoryId, limit, offset)
+    fun expenseRankSummary(start: Long, end: Long, categoryId: Long) = dao.expenseRankSummary(start, end, categoryId)
     suspend fun searchTransactions(search: String, start: Long, end: Long, categoryId: Long,
         tagId: Long, method: String, source: String, type: String, pendingOnly: Boolean,
         limit: Int, offset: Int) = dao.searchTransactions(search, start, end, categoryId, tagId,

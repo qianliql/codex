@@ -15,7 +15,7 @@
                         <com.google.android.material.button.MaterialButton android:id="@+id/specialTypeOption" style="@style/LedgerToggleButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:visibility="gone" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
                     <TextView android:id="@+id/amountLabel" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="支出金额（元）" />
-                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/amountInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" app:boxBackgroundMode="none" app:hintEnabled="false" app:prefixText="¥">
+                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/amountInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" app:boxBackgroundMode="none" app:hintEnabled="false" app:prefixText="¥" app:prefixTextAppearance="@style/LedgerAmountText" app:prefixTextColor="?attr/colorOnSurface">
                         <com.google.android.material.textfield.TextInputEditText android:id="@+id/amount" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="0.00" android:imeOptions="actionNext" android:inputType="numberDecimal" android:maxLines="1" android:textColor="?attr/colorOnSurface" android:textSize="36sp" android:textStyle="bold" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
@@ -25,7 +25,7 @@
                     <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="选择分类" />
                     <HorizontalScrollView android:id="@+id/categoryScroll" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:scrollbars="horizontal" android:scrollbarSize="2dp" android:fadeScrollbars="false" android:overScrollMode="never">
                         <FrameLayout android:layout_width="wrap_content" android:layout_height="wrap_content">
-                            <com.google.android.material.chip.ChipGroup android:id="@+id/categoryChips" android:layout_width="wrap_content" android:layout_height="wrap_content" app:chipSpacingHorizontal="4dp" app:chipSpacingVertical="2dp" app:singleSelection="true" />
+                            <com.google.android.material.chip.ChipGroup android:id="@+id/categoryChips" android:layout_width="wrap_content" android:layout_height="wrap_content" app:chipSpacingHorizontal="6dp" app:chipSpacingVertical="6dp" app:singleSelection="true" />
                         </FrameLayout>
                     </HorizontalScrollView>
                     <com.google.android.material.button.MaterialButton android:id="@+id/expandCategories" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="展开不常用分类 ▾" android:visibility="gone" />
@@ -34,7 +34,7 @@
             <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                     <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="备注（可选）">
-                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/note" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textMultiLine" android:minLines="2" android:maxLines="4" />
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/note" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textMultiLine" android:minLines="1" android:maxLines="3" android:textSize="15sp" android:paddingVertical="12dp" />
                     </com.google.android.material.textfield.TextInputLayout>
                     <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="支付方式" />
                     <com.google.android.material.chip.ChipGroup android:id="@+id/paymentMethodChips" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" app:chipSpacingHorizontal="4dp" app:singleLine="true" app:singleSelection="true" app:selectionRequired="true" />

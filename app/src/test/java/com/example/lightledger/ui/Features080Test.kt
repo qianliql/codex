@@ -87,6 +87,16 @@ class Features080Test {
                 note.setText("虚构午餐备注")
                 activity.findViewById<EditText>(R.id.amount).setText("12.50")
                 shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(250))
+                measure(root)
+                val prefix = activity.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.amountInput).prefixTextView
+                val amountView = activity.findViewById<EditText>(R.id.amount)
+                assertEquals(amountView.textSize, prefix.textSize, 1f)
+                assertEquals(android.graphics.Typeface.BOLD, prefix.typeface.style)
+                assertTrue(note.height <= (if (large) 86 else 72) * root.resources.displayMetrics.density)
+                chips(payments).forEach { chip ->
+                    val textCenter = chip.totalPaddingLeft + (chip.layout.getLineLeft(0) + chip.layout.getLineRight(0)) / 2
+                    assertEquals("centered payment ${chip.text}", chip.width / 2f, textCenter, 2 * root.resources.displayMetrics.density)
+                }
                 measure(root); save(root, if (large) "editor-compact-large-font" else "editor-compact")
                 if (large) {
                     activity.findViewById<android.widget.ScrollView>(R.id.editorScroll).fullScroll(View.FOCUS_DOWN)
@@ -139,29 +149,50 @@ class Features080Test {
             db.dao().insertTag(Tag(1, "虚构标签")); db.dao().insertTransactionTags(listOf(TransactionTagCrossRef(1, 1)))
             repository.addMerchantRule("虚构规则", meal.id, true)
         }
-        val controller = Robolectric.buildActivity(CategoryActivity::class.java).setup()
+        val controller = DragTestSupport.controller()
         try {
             val activity = controller.get()
             val root = activity.findViewById<ViewGroup>(R.id.categoryContainer)
             fun row(name: String) = texts(root).single { it.text.toString() == name }.parent.parent.parent as View
             await { texts(root).any { it.text.toString() == "日用" } }
-            row("日用").performLongClick()
-            var dialog = ShadowDialog.getLatestDialog() as AlertDialog
-            assertEquals(listOf("通知栏 · 最多3个", "常用 · 最多8个", "不常用 · 默认折叠"),
-                (0 until dialog.listView.adapter.count).map { dialog.listView.adapter.getItem(it).toString() })
-            dialog.listView.performItemClick(dialog.listView.adapter.getView(1, null, dialog.listView), 1, 1)
-            await { !dialog.isShowing }
+            fun drag(name: String, priority: Int?) {
+                measure(activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0))
+                assertTrue(row(name).performLongClick())
+                measure(activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0))
+                val category = DragTestSupport.source!!
+                val host = activity.findViewById<View>(R.id.categoryDragHost)
+                assertEquals(View.VISIBLE, host.visibility)
+                host.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_STARTED, category))
+                val ids = listOf(R.id.dropNotificationPriority, R.id.dropCommonPriority, R.id.dropOccasionalPriority)
+                if (priority != null) {
+                    val target = activity.findViewById<View>(ids[priority])
+                    val available = target.isEnabled
+                    assertEquals(available, target.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_STARTED, category)))
+                    val x = target.width / 2f; val y = target.height / 2f
+                    target.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_ENTERED, category, x, y))
+                    target.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_LOCATION, category, x, y))
+                    val accepted = target.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DROP, category, x, y))
+                    assertEquals("drop acceptance", available, accepted)
+                    if (available) await {
+                        val saved = runBlocking { repository.categoryList() }
+                        saved.single { it.name == name }.priority == priority && (0..1).all { group ->
+                            val heading = "${CategoryPriority.label(group)} · ${saved.count { it.priority == group && it.name != CategoryCatalog.unclassified }}/${CategoryPriority.limit(group)}"
+                            texts(root).any { it.text.toString() == heading }
+                        }
+                    }
+                }
+                host.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_ENDED, category))
+                assertEquals(View.GONE, host.visibility)
+            }
+            drag("日用", 1)
             assertEquals(1, runBlocking { repository.categoryList().single { it.name == "日用" }.priority })
-            row("日用").performLongClick(); dialog = ShadowDialog.getLatestDialog() as AlertDialog
-            dialog.listView.performItemClick(dialog.listView.adapter.getView(0, null, dialog.listView), 0, 0)
-            await { !dialog.isShowing }
-            row("娱乐").performLongClick(); dialog = ShadowDialog.getLatestDialog() as AlertDialog
-            dialog.listView.performItemClick(dialog.listView.adapter.getView(0, null, dialog.listView), 0, 0)
-            await { dialog.listView.isEnabled }
-            assertTrue(dialog.isShowing)
-            assertEquals(1, dialog.listView.checkedItemPosition)
+            drag("日用", 0)
+            drag("娱乐", 0)
+            assertFalse(activity.findViewById<View>(R.id.dropNotificationPriority).isEnabled)
             assertEquals(1, runBlocking { repository.categoryList().single { it.name == "娱乐" }.priority })
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick(); idle()
+            val cancelled = runBlocking { db.dao().snapshot() }
+            drag("娱乐", null)
+            assertEquals(cancelled, runBlocking { db.dao().snapshot() })
             fun requestDelete(): AlertDialog {
                 row("正餐").findViewById<View>(R.id.editIcon).performClick()
                 val list = findList(shadowOf(RuntimeEnvironment.getApplication()).latestPopupWindow.contentView)!!
@@ -173,7 +204,7 @@ class Features080Test {
                 return ShadowDialog.getLatestDialog() as AlertDialog
             }
             val before = runBlocking { db.dao().snapshot() }
-            dialog = requestDelete()
+            var dialog = requestDelete()
             assertTrue(dialog.findViewById<TextView>(android.R.id.message)!!.text.toString().contains("2 笔"))
             assertTrue(dialog.findViewById<TextView>(android.R.id.message)!!.text.toString().contains("1 条"))
             assertEquals(before, runBlocking { db.dao().snapshot() })
@@ -227,6 +258,6 @@ class Features080Test {
         val dir = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888); root.draw(Canvas(bitmap))
         val suffix = if (RuntimeEnvironment.getApiLevel() == 29) "" else "-api${RuntimeEnvironment.getApiLevel()}"
-        File(dir, "LightLedger-0.8.0-$name$suffix.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        File(dir, "LightLedger-0.9.0-$name$suffix.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
     }
 }

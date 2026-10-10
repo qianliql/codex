@@ -28,7 +28,7 @@ class ThemeActivity : LedgerActivity() {
             LedgerPalette.entries.forEach { palette ->
                 val row = RowThemeBinding.inflate(android.view.LayoutInflater.from(context), binding.themeChoices, false)
                 row.themeName.text = palette.label
-                row.themeCaption.text = palette.caption
+                row.themeCaption.visibility = View.GONE
                 row.selectedLabel.visibility = if (palette == selected) View.VISIBLE else View.GONE
                 row.root.strokeWidth = ((if (palette == selected) 2 else 1) * context.resources.displayMetrics.density).toInt()
                 row.root.strokeColor = context.ledgerColor(if (palette == selected) com.example.lightledger.R.color.ledger_teal else com.example.lightledger.R.color.ledger_border)

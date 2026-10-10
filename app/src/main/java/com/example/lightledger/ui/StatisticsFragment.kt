@@ -12,6 +12,14 @@ import com.example.lightledger.R
 import com.google.android.material.button.MaterialButton
 import com.example.lightledger.databinding.FragmentStatisticsBinding
 import java.util.Calendar
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import com.example.lightledger.data.ExpenseCategoryTotal
+import com.example.lightledger.statistics.CategoryBreakdown
+import com.example.lightledger.statistics.ExpenseSlice
+import com.example.lightledger.databinding.RowExpenseSliceBinding
+import com.example.lightledger.databinding.RowCategoryTotalBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class StatisticsFragment : Fragment() {
     private val model: StatisticsViewModel by viewModels()
@@ -29,6 +37,11 @@ class StatisticsFragment : Fragment() {
         b.previousPeriod.setOnClickListener { model.move(-1) }
         b.nextPeriod.setOnClickListener { model.move(1) }
         model.period.observe(viewLifecycleOwner) { period ->
+            if (model.expenseCategories.value?.first != period) {
+                b.categoryDonut.setData(CategoryBreakdown(0, emptyList()))
+                b.categoryLegend.removeAllViews()
+                b.categoryDonut.onSliceClick = null
+            }
             b.periodLabel.text = "${period.label()} ▾"
             stylePeriodButton(b.monthMode, period.month != null)
             stylePeriodButton(b.yearMode, period.month == null)
@@ -47,13 +60,52 @@ class StatisticsFragment : Fragment() {
         model.totals.observe(viewLifecycleOwner) { (period, totals) ->
             if (model.period.value == period) updateTotals(totals)
         }
-        model.categories.observe(viewLifecycleOwner) { totals ->
-            CategoryRows.show(b.categoryContainer, totals.map { it.label to it.amountCents }, "本期暂无支出", progress = true, iconKeys = totals.associate { it.label to it.iconKey })
+        model.expenseCategories.observe(viewLifecycleOwner) { (period, totals) ->
+            if (model.period.value == period) showCategories(period, totals)
         }
         model.payments.observe(viewLifecycleOwner) { totals ->
             CategoryRows.show(b.paymentContainer, totals.map { UiFormat.method(it.paymentMethod) to it.amountCents }, "本期暂无支出", progress = true)
         }
         model.trend.observe(viewLifecycleOwner) { b.spendingChart.setData(model.period.value ?: return@observe, it) }
+    }
+
+    private fun showCategories(period: StatisticsPeriod, totals: List<ExpenseCategoryTotal>) {
+        val b = binding ?: return
+        val data = CategoryBreakdown.from(totals)
+        b.categoryDonut.setData(data)
+        b.categoryDonut.onSliceClick = { openSlice(period, it) }
+        b.categoryLegend.removeAllViews()
+        data.slices.forEachIndexed { index, slice ->
+            val row = RowExpenseSliceBinding.inflate(layoutInflater, b.categoryLegend, false)
+            row.sliceColor.background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(b.categoryDonut.colorFor(index)) }
+            row.sliceName.text = slice.label
+            row.sliceShare.text = String.format(java.util.Locale.CHINA, "%.2f%%", slice.amountCents.toDouble() / data.totalCents * 100) + if (slice.merged) " · ${slice.categories.size}个分类" else ""
+            row.sliceAmount.text = UiFormat.money(slice.amountCents)
+            row.root.contentDescription = "${slice.label}，${row.sliceShare.text}，${row.sliceAmount.text}，点击查看消费明细"
+            row.root.setOnClickListener { openSlice(period, slice) }
+            b.categoryLegend.addView(row.root)
+        }
+    }
+
+    private fun openSlice(period: StatisticsPeriod, slice: ExpenseSlice) {
+        if (!slice.merged) { ExpenseRankActivity.open(requireContext(), period, slice.categories.single()); return }
+        val list = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL; val inset = (20 * resources.displayMetrics.density).toInt(); setPadding(inset, 0, inset, 0) }
+        val scroll = ScrollView(requireContext()).apply { addView(list) }
+        val dialog = MaterialAlertDialogBuilder(requireContext()).setTitle("其他项目 · ${slice.categories.size}类")
+            .setMessage("${period.label()} · 合计${UiFormat.money(slice.amountCents)}")
+            .setView(scroll).setPositiveButton("关闭", null).create()
+        slice.categories.forEach { item ->
+            val row = RowCategoryTotalBinding.inflate(layoutInflater, list, false)
+            row.categoryName.text = item.label; row.categoryAmount.text = UiFormat.money(item.amountCents)
+            CategoryIcons.apply(row.categoryIcon, item.label, item.iconKey)
+            row.root.minimumHeight = (64 * resources.displayMetrics.density).toInt()
+            row.root.isClickable = true; row.root.isFocusable = true
+            row.root.setBackgroundResource(android.util.TypedValue().also { requireContext().theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true) }.resourceId)
+            row.root.contentDescription = "${item.label}，${UiFormat.money(item.amountCents)}，查看消费排行"
+            row.root.setOnClickListener { dialog.dismiss(); ExpenseRankActivity.open(requireContext(), period, item) }
+            list.addView(row.root)
+        }
+        dialog.show()
     }
 
     private fun updateTotals(totals: MonthTotals) {

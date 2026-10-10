@@ -206,6 +206,15 @@ interface LedgerDao {
     @Query("SELECT COALESCE(c.name, '未分类') AS label, c.iconKey AS iconKey, SUM(t.amountCents) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' GROUP BY t.categoryId ORDER BY amountCents DESC")
     fun categoryTotals(start: Long, end: Long): LiveData<List<CategoryTotal>>
 
+    @Query("SELECT CASE WHEN c.id IS NULL OR c.name = '未分类' THEN 0 ELSE c.id END AS categoryId, COALESCE(c.name, '未分类') AS label, c.iconKey AS iconKey, SUM(t.amountCents) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' AND t.amountCents > 0 GROUP BY CASE WHEN c.id IS NULL OR c.name = '未分类' THEN 0 ELSE c.id END ORDER BY amountCents DESC, categoryId")
+    fun expenseCategories(start: Long, end: Long): LiveData<List<ExpenseCategoryTotal>>
+
+    @Query("SELECT t.*, c.name AS categoryName, c.iconKey AS categoryIconKey FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' AND t.amountCents > 0 AND ((:categoryId = 0 AND (c.id IS NULL OR c.name = '未分类')) OR (:categoryId > 0 AND t.categoryId = :categoryId)) ORDER BY t.amountCents DESC, t.timestamp DESC, t.id DESC LIMIT :limit OFFSET :offset")
+    suspend fun expenseRank(start: Long, end: Long, categoryId: Long, limit: Int, offset: Int): List<TransactionRow>
+
+    @Query("SELECT COUNT(*) AS billCount, COALESCE(SUM(t.amountCents),0) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' AND t.amountCents > 0 AND ((:categoryId = 0 AND (c.id IS NULL OR c.name = '未分类')) OR (:categoryId > 0 AND t.categoryId = :categoryId))")
+    fun expenseRankSummary(start: Long, end: Long, categoryId: Long): LiveData<ExpenseRankSummary>
+
     @Query("SELECT paymentMethod, SUM(amountCents) AS amountCents FROM transactions WHERE timestamp >= :start AND timestamp < :end AND type = 'EXPENSE' GROUP BY paymentMethod ORDER BY amountCents DESC")
     fun paymentTotals(start: Long, end: Long): LiveData<List<PaymentTotal>>
 

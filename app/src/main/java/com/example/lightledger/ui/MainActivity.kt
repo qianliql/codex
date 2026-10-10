@@ -1,6 +1,5 @@
 package com.example.lightledger.ui
 
-import android.animation.ValueAnimator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -39,11 +38,7 @@ class MainActivity : LedgerActivity() {
     }
 
     private fun pageTransaction(): FragmentTransaction = supportFragmentManager.beginTransaction()
-        .setReorderingAllowed(true).apply {
-            if (ValueAnimator.areAnimatorsEnabled()) setCustomAnimations(
-                R.animator.ledger_page_enter, R.animator.ledger_page_exit,
-                R.animator.ledger_page_enter, R.animator.ledger_page_exit)
-        }
+        .setReorderingAllowed(true)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

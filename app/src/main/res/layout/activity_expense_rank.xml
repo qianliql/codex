@@ -1,0 +1,12 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="?attr/ledgerBackground" android:paddingHorizontal="@dimen/ledger_page_gutter">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:paddingTop="8dp">
+        <com.google.android.material.button.MaterialButton android:id="@+id/goBack" style="@style/LedgerTextButton" android:layout_width="48dp" android:layout_height="48dp" android:minWidth="0dp" android:padding="0dp" android:contentDescription="返回" app:icon="@drawable/ic_arrow_left" app:iconPadding="0dp" app:iconGravity="textStart" />
+        <TextView android:id="@+id/rankTitle" style="@style/LedgerSectionTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="消费排行" />
+    </LinearLayout>
+    <TextView android:id="@+id/rankPeriod" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" />
+    <TextView android:id="@+id/rankSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:layout_marginBottom="14dp" android:textColor="?attr/colorOnSurface" android:textSize="20sp" android:textStyle="bold" />
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/rankList" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:clipToPadding="false" android:paddingBottom="8dp" />
+    <TextView android:id="@+id/rankEmpty" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:gravity="center" android:text="本期暂无支出" android:visibility="gone" />
+    <com.google.android.material.progressindicator.CircularProgressIndicator android:id="@+id/rankLoading" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:layout_marginBottom="10dp" android:indeterminate="true" android:visibility="gone" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/rankRetry" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="重新加载" android:visibility="gone" />
+</LinearLayout>

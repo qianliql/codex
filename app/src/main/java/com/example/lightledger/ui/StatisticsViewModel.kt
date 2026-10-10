@@ -28,6 +28,7 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
     val period = MutableLiveData(StatisticsPeriod(now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1))
     val totals = period.switchMap { selected -> selected.bounds().let { (start, end) -> repository.totals(start, end).map { selected to it } } }
     val categories = period.switchMap { it.bounds().let { (start, end) -> repository.categories(start, end) } }
+    val expenseCategories = period.switchMap { selected -> selected.bounds().let { (start, end) -> repository.expenseCategories(start, end).map { selected to it } } }
     val payments = period.switchMap { it.bounds().let { (start, end) -> repository.payments(start, end) } }
     val trend = period.switchMap { selected ->
         selected.bounds().let { (start, end) ->

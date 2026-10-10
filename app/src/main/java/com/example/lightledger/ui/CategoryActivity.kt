@@ -26,6 +26,9 @@ class CategoryActivity : LedgerActivity() {
     private val repository by lazy { (application as LedgerApp).repository }
     private var categories = emptyList<Category>()
     private var expanded = false
+    private lateinit var dragTargets: CategoryDragTargets
+    // Optional dispatcher for platform-independent drag checks; normal app uses Android's dispatcher.
+    internal var categoryDragStarter: ((View, Category) -> Boolean)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +36,15 @@ class CategoryActivity : LedgerActivity() {
         binding = ActivityCategoryBinding.inflate(layoutInflater)
         setContentView(binding.root)
         SystemBarInsets.apply(binding.root)
+        dragTargets = CategoryDragTargets(binding.categoryDragHost, { categories }, categoryDragStarter) { category, priority ->
+            lifecycleScope.launch {
+                try {
+                    val current = repository.categoryList().firstOrNull { it.id == category.id } ?: return@launch
+                    repository.saveCategoryPreferences(current.copy(priority = priority))
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) { toast(e.localizedMessage ?: "调整失败，请重试") }
+            }
+        }
         binding.addCategory.setOnClickListener { editCategory(null) }
         repository.categories.observe(this) { categories = it; showCategories() }
     }
@@ -62,19 +74,18 @@ class CategoryActivity : LedgerActivity() {
                 val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
                 item.categoryName.text = category.name
                 CategoryIcons.apply(item.categoryIcon, category.name, category.iconKey)
-                item.categoryHint.text = "${index + 1} · ${CategoryPriority.label(priority)} · 长按调整"
                 item.root.setOnClickListener { editCategory(category) }
-                item.root.setOnLongClickListener { choosePriority(category); true }
+                item.root.setOnLongClickListener { dragTargets.start(category, it) }
                 item.editIcon.setOnClickListener { showActions(it, category, index, group.size) }
                 container.addView(item.root)
             }
             if (group.isEmpty() && priority != 2) container.addView(TextView(this).apply {
-                text = "点击分类可调整分组"; textSize = 13f; setPadding(0, 0, 0, dp(12)); setTextColor(context.ledgerColor(R.color.ledger_muted))
+                text = "暂无分类"; textSize = 13f; setPadding(0, 0, 0, dp(12)); setTextColor(context.ledgerColor(R.color.ledger_muted))
             })
         }
         categories.firstOrNull { it.name == CategoryCatalog.unclassified }?.let { category ->
             val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
-            item.categoryName.text = category.name; item.categoryHint.text = "暂未选择分类的账单"
+            item.categoryName.text = category.name
             CategoryIcons.apply(item.categoryIcon, category.name, category.iconKey)
             item.editIcon.setOnClickListener { showActions(it, category, 0, 1) }
             container.addView(item.root)
@@ -98,27 +109,6 @@ class CategoryActivity : LedgerActivity() {
         }
     }
 
-    private fun choosePriority(category: Category) {
-        val labels = arrayOf("通知栏 · 最多3个", "常用 · 最多8个", "不常用 · 默认折叠")
-        MaterialAlertDialogBuilder(this).setTitle("${category.name}的重要度")
-            .setSingleChoiceItems(labels, category.priority) { dialog, priority ->
-                val choice = dialog as AlertDialog
-                choice.listView.isEnabled = false
-                lifecycleScope.launch {
-                    try {
-                        val current = repository.categoryList().firstOrNull { it.id == category.id }
-                            ?: error("分类已不存在")
-                        repository.saveCategoryPreferences(current.copy(priority = priority))
-                        dialog.dismiss()
-                    } catch (e: CancellationException) { throw e }
-                    catch (e: Exception) {
-                        choice.listView.setItemChecked(category.priority, true)
-                        toast(e.localizedMessage ?: "调整失败，请重试")
-                    } finally { choice.listView.isEnabled = true }
-                }
-            }.setNegativeButton("取消", null).show()
-    }
-
     private fun editCategory(category: Category?) {
         val b = DialogCategoryPreferencesBinding.inflate(layoutInflater)
         b.categoryName.setText(category?.name.orEmpty())
@@ -132,8 +122,17 @@ class CategoryActivity : LedgerActivity() {
         b.priorityChoices.check(when (category?.priority ?: CategoryPriority.OCCASIONAL) {
             0 -> R.id.notificationPriority; 1 -> R.id.commonPriority; else -> R.id.occasionalPriority
         })
+        listOf(b.notificationPriority, b.commonPriority, b.occasionalPriority).forEachIndexed { priority, button ->
+            // ToggleGroup applies a one-line default when children are added; restore the two-line cards.
+            button.setSingleLine(false); button.maxLines = 2; button.ellipsize = null
+            val count = categories.count { it.priority == priority && it.name != CategoryCatalog.unclassified }
+            val limit = CategoryPriority.limit(priority)
+            button.isEnabled = category?.priority == priority || count < limit
+            button.text = CategoryPriority.label(priority) + "\n" + if (priority == 2) "折叠" else if (!button.isEnabled) "已满" else "$count / $limit"
+            button.contentDescription = "${CategoryPriority.label(priority)}，$count 个${if (button.isEnabled) "" else "，已满不可选"}"
+        }
         b.categoryName.doAfterTextChanged { b.nameInput.error = null; b.categoryError.visibility = View.GONE; updateIcon() }
-        b.priorityChoices.setOnCheckedChangeListener { _, _ -> b.categoryError.visibility = View.GONE }
+        b.priorityChoices.addOnButtonCheckedListener { _, _, _ -> b.categoryError.visibility = View.GONE }
         val dialog = MaterialAlertDialogBuilder(this).setTitle(if (category == null) "新增分类" else "编辑分类")
             .setView(b.root).setNegativeButton("取消", null).setPositiveButton("保存", null).create()
         dialog.setOnShowListener {
@@ -142,7 +141,7 @@ class CategoryActivity : LedgerActivity() {
                 val name = b.categoryName.text.toString().trim()
                 if (name.isBlank()) { b.nameInput.error = "请输入分类名称"; return@setOnClickListener }
                 if (name == "家居" || name == CategoryCatalog.unclassified) { b.nameInput.error = "请换一个名称，家居已归入其他"; return@setOnClickListener }
-                val priority = when (b.priorityChoices.checkedRadioButtonId) { R.id.notificationPriority -> 0; R.id.commonPriority -> 1; else -> 2 }
+                val priority = when (b.priorityChoices.checkedButtonId) { R.id.notificationPriority -> 0; R.id.commonPriority -> 1; else -> 2 }
                 save.isEnabled = false
                 lifecycleScope.launch {
                     try {

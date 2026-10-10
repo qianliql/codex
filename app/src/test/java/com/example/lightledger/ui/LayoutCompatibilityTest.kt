@@ -16,6 +16,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.lightledger.databinding.RowCategoryManageBinding
+import com.example.lightledger.databinding.RowExpenseSliceBinding
 import com.example.lightledger.databinding.DialogCategoryNameBinding
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
@@ -288,7 +289,20 @@ class LayoutCompatibilityTest {
                     CategoryIcons.apply(row.categoryIcon, label)
                     it.addView(row.root)
                 }
-            } else CategoryRows.show(it, listOf("正餐" to 82650L, "日用" to 29900L, "娱乐" to 16100L), "", progress = true)
+            } else {
+                val data = com.example.lightledger.statistics.CategoryBreakdown.from(listOf(
+                    ExpenseCategoryTotal(1, "正餐", 82650), ExpenseCategoryTotal(2, "日用", 29900),
+                    ExpenseCategoryTotal(3, "娱乐", 16100), ExpenseCategoryTotal(4, "交通", 5000)))
+                root.findViewById<CategoryDonutView>(R.id.categoryDonut).setData(data)
+                val legend = root.findViewById<LinearLayout>(R.id.categoryLegend)
+                data.slices.forEach { slice ->
+                    val row = RowExpenseSliceBinding.inflate(android.view.LayoutInflater.from(root.context), legend, false)
+                    row.sliceName.text = slice.label
+                    row.sliceShare.text = String.format(java.util.Locale.CHINA, "%.2f%%", slice.amountCents.toDouble() / data.totalCents * 100)
+                    row.sliceAmount.text = UiFormat.money(slice.amountCents)
+                    legend.addView(row.root)
+                }
+            }
         }
         root.findViewById<ChipGroup>(R.id.categoryChips)?.let { group ->
             CategoryCatalog.primary.forEach { label -> addChip(group, label, label == "正餐") }
@@ -326,7 +340,7 @@ class LayoutCompatibilityTest {
         val directory = System.getProperty("lightledger.preview.dir") ?: return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
-        val file = File(directory, "LightLedger-0.8.0-$name.png")
+        val file = File(directory, "LightLedger-0.9.0-$name.png")
         file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()

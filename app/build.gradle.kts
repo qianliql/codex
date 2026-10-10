@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.lightledger"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "0.8.0"
+        versionCode = 15
+        versionName = "0.9.0"
     }
     buildTypes {
         release { isMinifyEnabled = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") }

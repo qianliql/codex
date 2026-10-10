@@ -2,7 +2,6 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="?attr/ledgerBackground">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/ledger_page_gutter">
         <TextView style="@style/LedgerPageTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="我的" />
-        <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="你的账本，你的生活" />
         <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="26dp" android:layout_marginBottom="10dp" android:text="账本设置" />
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp">

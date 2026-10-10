@@ -36,7 +36,11 @@
         </com.google.android.material.card.MaterialCardView>
         <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="分类支出" />
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
-            <LinearLayout android:id="@+id/categoryContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" />
+            <LinearLayout android:id="@+id/categoryContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <com.example.lightledger.ui.CategoryDonutView android:id="@+id/categoryDonut" android:layout_width="match_parent" android:layout_height="250dp" />
+                <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="点击圆环或分类查看明细 · 未扣退款" />
+                <LinearLayout android:id="@+id/categoryLegend" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="vertical" />
+            </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="支付方式" />
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">

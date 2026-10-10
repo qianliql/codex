@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="@dimen/ledger_page_gutter" android:background="?attr/ledgerBackground">
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="?attr/ledgerBackground">
+<LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="@dimen/ledger_page_gutter">
     <TextView style="@style/LedgerPageTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_marginTop="4dp" android:text="分类管理" />
     <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="6dp" android:text="通知栏优先，常用随手选，不常用收起来" />
+        android:layout_marginTop="6dp" android:text="长按分类，拖到分组调整重要度" />
     <com.google.android.material.button.MaterialButton android:id="@+id/addCategory" style="@style/LedgerButton"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_marginTop="16dp" android:layout_marginBottom="12dp" android:text="＋ 新增分类" />
@@ -15,3 +14,5 @@
             android:orientation="vertical" />
     </ScrollView>
 </LinearLayout>
+    <FrameLayout android:id="@+id/categoryDragHost" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" />
+</FrameLayout>

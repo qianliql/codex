@@ -22,6 +22,7 @@
         </service>
         <receiver android:name=".notification.QuickCategoryReceiver" android:exported="false" />
         <activity android:name=".ui.ThemeActivity" android:exported="false" />
+        <activity android:name=".ui.ExpenseRankActivity" android:exported="false" />
         <activity android:windowSoftInputMode="adjustResize" android:name=".ui.TransactionSearchActivity" android:exported="false" />
         <activity android:windowSoftInputMode="adjustResize" android:name=".ui.TransactionEditorActivity" android:exported="false" />
         <activity android:windowSoftInputMode="adjustResize" android:name=".ui.ScreenshotImportActivity" android:exported="false" />
