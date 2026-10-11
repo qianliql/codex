@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
+import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -89,18 +90,31 @@ class ListenerProtectionService : Service() {
         check.run()
         return START_STICKY
     }
-    private fun status() = if (PaymentNotificationService.isConnected) "监听已连接，等待支付通知" else "监听已断开，正在自动重连"
+    private fun status() = when {
+        PaymentNotificationService.isConnected -> "监听已连接，等待支付通知"
+        ListenerRecovery.checkingInitialConnection -> "正在检查监听连接"
+        else -> "监听未连接，正在自动恢复"
+    }
     private fun notification(): android.app.Notification {
         val open = PendingIntent.getActivity(this, 9203, Intent(this, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val dismissed = PendingIntent.getBroadcast(this, 9204,
+            Intent(this, ProtectionNotificationReceiver::class.java).setAction(ProtectionNotificationReceiver.DISMISSED),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val status = status()
         lastStatus = status
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield).setContentTitle("轻账本 · 后台保护")
-            .setContentText(status).setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true)
+            .setContentText(status).setContentIntent(open).setDeleteIntent(dismissed).setOngoing(true).setOnlyAlertOnce(true)
             .setSilent(true).setShowWhen(false).setCategory(NotificationCompat.CATEGORY_SERVICE).build()
     }
     private fun updateNotification() {
         if (lastStatus != status()) getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification())
+    }
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        NotificationDiagnostics.lifecycle(this, "最近任务已划掉，后台保护继续运行")
+        handler.removeCallbacks(check)
+        check.run()
     }
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
@@ -109,4 +123,15 @@ class ListenerProtectionService : Service() {
         super.onDestroy()
     }
     override fun onBind(intent: Intent?): IBinder? = null
+}
+
+/** Android14+ allows swiping away ongoing notifications without stopping their service. */
+class ProtectionNotificationReceiver : BroadcastReceiver() {
+    companion object { const val DISMISSED = "com.example.lightledger.PROTECTION_NOTIFICATION_DISMISSED" }
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != DISMISSED) return
+        NotificationDiagnostics.lifecycle(context, if (ListenerProtectionService.isRunning)
+            "状态通知已划走，后台保护仍在运行" else "状态通知已划走，后台保护未运行")
+        // A dismissed notification is not an instruction to stop the listener or change its grant.
+    }
 }

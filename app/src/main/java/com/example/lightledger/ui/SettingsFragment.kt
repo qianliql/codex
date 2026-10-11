@@ -56,6 +56,7 @@ class SettingsFragment : Fragment() {
         b.exportBackup.setOnClickListener { createBackup.launch("lightledger_backup_${fileDate()}.json") }
         b.importBackup.setOnClickListener { openBackup.launch(arrayOf("*/*")) }
         b.notificationSettings.setOnClickListener { NotificationAccess.openSettings(requireActivity()) }
+        b.notificationStatus.setOnClickListener { NotificationAccess.repair(requireActivity()) }
         b.quickNotificationSettings.setOnClickListener { NotificationAccess.requestPostPermissionOrOpenSettings(requireActivity(), postPermission) }
         b.backgroundSettings.setOnClickListener { NotificationAccess.backgroundGuide(requireActivity()) }
         b.backgroundProtection.setOnCheckedChangeListener { _, checked ->
@@ -94,13 +95,14 @@ class SettingsFragment : Fragment() {
         binding?.notificationStatus?.text = when {
             !NotificationAccess.isEnabled(requireContext()) -> "通知自动记账：未开启"
             com.example.lightledger.notification.PaymentNotificationService.isConnected -> "通知自动记账：监听已连接"
-            else -> "通知自动记账：正在尝试重连"
+            ListenerRecovery.checkingInitialConnection -> "通知自动记账：正在检查连接"
+            else -> "通知自动记账：未连接，正在恢复"
         }
         refreshingProtection = true
         binding?.backgroundProtection?.isChecked = ListenerProtection.isEnabled(requireContext())
         refreshingProtection = false
         binding?.protectionStatus?.text = when {
-            !ListenerProtection.isEnabled(requireContext()) -> "显示常驻状态通知，闲置时自动尝试重连"
+            !ListenerProtection.isEnabled(requireContext()) -> "开启后划掉页面仍可运行；强行停止后需重新打开"
             !NotificationAccess.isEnabled(requireContext()) -> "请先允许通知读取，后台保护已暂停"
             ListenerProtectionService.isRunning -> "后台保护运行中 · 常驻通知无声音"
             else -> "后台保护等待启动，请检查系统后台限制"

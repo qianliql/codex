@@ -42,7 +42,7 @@ import java.lang.reflect.Modifier
 import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
-@Config(application = LedgerApp::class, sdk = [26, 29, 35], qualifiers = "w360dp-h760dp-xxhdpi")
+@Config(application = LedgerApp::class, sdk = [26, 29, 35], qualifiers = "w360dp-h760dp-xxhdpi", shadows = [ModernBindingShadow::class])
 class ListenerRecovery092Test {
     private val app get() = RuntimeEnvironment.getApplication() as LedgerApp
     private val jobs get() = app.getSystemService(JobScheduler::class.java)
@@ -52,6 +52,8 @@ class ListenerRecovery092Test {
         ListenerRecovery.check(app)
         NotificationAccess.resetRebindThrottle()
         ShadowNotificationListenerService.reset()
+        ModernBindingShadow.rejectUnbind = false
+        ModernBindingShadow.unbinds.clear()
         LedgerDatabase::class.java.getDeclaredField("instance").apply { isAccessible = true; set(null, null) }
         ViewModelProvider.AndroidViewModelFactory::class.java.declaredFields
             .filter { Modifier.isStatic(it.modifiers) && it.type == ViewModelProvider.AndroidViewModelFactory::class.java }
@@ -110,6 +112,7 @@ class ListenerRecovery092Test {
                 listener.get().onListenerConnected()
                 controller.get().onStartJob(params); idle(1)
                 assertFalse(shadowOf(controller.get()).isRescheduleNeeded)
+                assertFalse(controller.get().onStopJob(params))
             } finally { listener.destroy() }
             setAccess(false)
             controller.get().onStartJob(params); idle(1)
@@ -195,7 +198,7 @@ class ListenerRecovery092Test {
             assertFalse(PaymentNotificationService.isConnected)
             val notification = shadowOf(service).lastForegroundNotification
             assertTrue(notification.flags and Notification.FLAG_ONGOING_EVENT != 0)
-            assertTrue(notification.extras.getString(Notification.EXTRA_TEXT)!!.contains("正在自动重连"))
+            assertTrue(notification.extras.getString(Notification.EXTRA_TEXT)!!.contains("正在检查监听连接"))
             val channel = app.getSystemService(android.app.NotificationManager::class.java).getNotificationChannel(ListenerProtectionService.CHANNEL_ID)
             assertEquals(android.app.NotificationManager.IMPORTANCE_LOW, channel.importance)
             val listener = Robolectric.buildService(PaymentNotificationService::class.java).create()
@@ -243,7 +246,7 @@ class ListenerRecovery092Test {
             activity.findViewById<BottomNavigationView>(R.id.bottomNavigation).selectedItemId = R.id.nav_settings
             activity.supportFragmentManager.executePendingTransactions()
             assertFalse(activity.findViewById<SwitchMaterial>(R.id.backgroundProtection).isChecked)
-            assertTrue(activity.findViewById<TextView>(R.id.notificationStatus).text.toString().contains("尝试重连"))
+            assertTrue(activity.findViewById<TextView>(R.id.notificationStatus).text.toString().contains("正在检查连接"))
             val protection = activity.findViewById<SwitchMaterial>(R.id.backgroundProtection)
             assertTrue(protection.isEnabled)
             val data = activity.findViewById<View>(R.id.exportBackup).parent as ViewGroup
@@ -262,7 +265,7 @@ class ListenerRecovery092Test {
             System.getProperty("lightledger.preview.dir")?.let { directory ->
                 val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
                 root.draw(Canvas(bitmap))
-                File(directory, "LightLedger-0.9.2-settings-api${RuntimeEnvironment.getApiLevel()}.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                File(directory, "LightLedger-0.9.3-settings-api${RuntimeEnvironment.getApiLevel()}.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 bitmap.recycle()
             }
         } finally { controller.pause().stop().destroy() }

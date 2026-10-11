@@ -39,16 +39,18 @@ object NotificationAccess {
         lastRebindAt = now
         runCatching {
             NotificationListenerService.requestRebind(ComponentName(context, PaymentNotificationService::class.java))
-        }
+            NotificationDiagnostics.lifecycle(context, "已请求监听连接")
+        }.onFailure { NotificationDiagnostics.lifecycle(context, "系统未接受连接请求") }
     }
 
     internal fun resetRebindThrottle() { lastRebindAt = null }
 
     fun repair(activity: Activity) {
         MaterialAlertDialogBuilder(activity).setTitle("恢复自动记账")
-            .setMessage("正在自动尝试重连。闲置后经常断开，可以在“我的”开启后台保护，并允许后台运行。仍无法连接时，再关闭并重新开启通知读取权限。")
+            .setMessage(NotificationDiagnostics.summary(activity) + "\n\n最近任务划掉应用时，请保持后台保护开启。系统强行停止后需重新打开应用。")
             .setPositiveButton("尝试重连") { _, _ ->
                 resetRebindThrottle()
+                ListenerBindingRepair.reset(activity)
                 ListenerRecovery.check(activity)
             }
             .setNeutralButton("后台设置") { _, _ -> backgroundGuide(activity) }

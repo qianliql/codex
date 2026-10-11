@@ -26,6 +26,7 @@ class PaymentNotificationService : NotificationListenerService() {
         super.onListenerConnected()
         isConnected = true
         current = this
+        NotificationDiagnostics.lifecycle(this, "监听已连接")
         ListenerRecovery.check(this)
         runCatching {
             activeNotifications.orEmpty()
@@ -40,8 +41,7 @@ class PaymentNotificationService : NotificationListenerService() {
         if (current != null && current !== this) return
         isConnected = false
         current = null
-        NotificationAccess.resetRebindThrottle()
-        ListenerRecovery.check(this)
+        ListenerRecovery.disconnected(this)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -109,9 +109,10 @@ class PaymentNotificationService : NotificationListenerService() {
 
     override fun onDestroy() {
         if (current == null || current === this) {
+            val wasConnected = current === this && isConnected
             isConnected = false
             current = null
-            ListenerRecovery.check(this)
+            if (wasConnected) ListenerRecovery.disconnected(this) else ListenerRecovery.check(this)
         }
         super.onDestroy()
     }

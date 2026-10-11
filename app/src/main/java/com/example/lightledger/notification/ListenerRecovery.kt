@@ -12,6 +12,7 @@ import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 
 /** Recovery outlives the Activity; jobs also survive process death and reboot. */
@@ -21,9 +22,21 @@ object ListenerRecovery {
     private val handler = Handler(Looper.getMainLooper())
     private var retry: Runnable? = null
     private var retryDelay = 5_000L
+    private var waitingSince: Long? = null
+    private var observedDisconnect = false
+    internal val checkingInitialConnection: Boolean get() = !observedDisconnect &&
+        waitingSince?.let { SystemClock.elapsedRealtime() - it < 15_000L } != false
+
+    fun disconnected(context: Context) {
+        observedDisconnect = true
+        NotificationDiagnostics.lifecycle(context, "监听断开")
+        NotificationAccess.resetRebindThrottle()
+        check(context)
+    }
 
     fun initialize(context: Context) {
         val app = context.applicationContext
+        ListenerBindingRepair.restoreInterruptedReset(app)
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) { check(context) }
         }
@@ -38,11 +51,14 @@ object ListenerRecovery {
 
     fun check(context: Context) {
         val app = context.applicationContext
+        ListenerBindingRepair.restoreInterruptedReset(app)
         val scheduler = app.getSystemService(JobScheduler::class.java)
         if (!NotificationAccess.isEnabled(app)) {
             handler.removeCallbacksAndMessages(null)
             retry = null
             retryDelay = 5_000L
+            waitingSince = null
+            observedDisconnect = false
             scheduler.cancel(WATCH_JOB)
             scheduler.cancel(RETRY_JOB)
             ListenerProtection.stop(app)
@@ -55,8 +71,22 @@ object ListenerRecovery {
             retryDelay = 5_000L
             scheduler.cancel(RETRY_JOB)
             NotificationAccess.resetRebindThrottle()
+            waitingSince = null
+            observedDisconnect = false
         } else {
+            val now = SystemClock.elapsedRealtime()
+            if (waitingSince == null) waitingSince = now
             NotificationAccess.reconnectIfNeeded(app)
+            val prefs = app.getSharedPreferences("listener_recovery", 0)
+            val wall = System.currentTimeMillis()
+            val lastReset = prefs.getLong("last_reset", 0L)
+            if (now - waitingSince!! >= 60_000L && (lastReset == 0L || wall < lastReset || wall - lastReset >= 600_000L)) {
+                // Throttle failed attempts too, so an OEM rejection cannot cause a reset loop.
+                prefs.edit().putLong("last_reset", wall).apply()
+                if (ListenerBindingRepair.reset(app)) {
+                    NotificationDiagnostics.lifecycle(app, "已请求重新绑定监听")
+                } else NotificationDiagnostics.lifecycle(app, "重新绑定请求未完成")
+            }
             scheduleIfAbsent(app, RETRY_JOB, periodic = false)
             if (retry == null) {
                 val task = Runnable {
@@ -96,7 +126,7 @@ class ListenerRecoveryJob : JobService() {
     }
     override fun onStopJob(params: JobParameters): Boolean {
         handler.removeCallbacksAndMessages(null)
-        return params.jobId == ListenerRecovery.RETRY_JOB && NotificationAccess.isEnabled(this)
+        return params.jobId == ListenerRecovery.RETRY_JOB && NotificationAccess.isEnabled(this) && !PaymentNotificationService.isConnected
     }
 }
 

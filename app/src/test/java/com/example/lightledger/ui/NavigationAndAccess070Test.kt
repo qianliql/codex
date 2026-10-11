@@ -87,7 +87,7 @@ class NavigationAndAccess070Test {
             assertEquals(View.GONE, banner.visibility)
             idle(6_000)
             assertEquals(View.VISIBLE, banner.visibility)
-            assertTrue(activity.findViewById<TextView>(R.id.accessMessage).text.toString().contains("正在自动重连"))
+            assertTrue(activity.findViewById<TextView>(R.id.accessMessage).text.toString().contains("正在自动恢复"))
             assertEquals("修复连接", activity.findViewById<TextView>(R.id.enableAutomatic).text.toString())
             activity.findViewById<View>(R.id.enableAutomatic).performClick()
             val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as androidx.appcompat.app.AlertDialog

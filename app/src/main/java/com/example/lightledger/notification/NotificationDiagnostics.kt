@@ -12,6 +12,11 @@ object NotificationDiagnostics {
     private const val SOURCE = "last_source"
     private const val RESULT = "last_result"
 
+    fun lifecycle(context: Context, event: String) {
+        context.getSharedPreferences(PREFS, 0).edit()
+            .putString("listener_event", event).putLong("listener_time", System.currentTimeMillis()).apply()
+    }
+
     fun record(context: Context, packageName: String, result: String) {
         val source = when (packageName) {
             "com.tencent.mm" -> "微信"
@@ -31,16 +36,30 @@ object NotificationDiagnostics {
     }
 
     fun summary(context: Context): String {
-        if (!NotificationAccess.isEnabled(context)) return "通知读取权限未开启。请点“通知访问设置”。"
-        if (!PaymentNotificationService.isConnected) return "读取权限已开启，正在尝试重连。请在“我的”开启后台保护、允许后台运行；仍未连接时可重新开启通知读取权限。"
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.CHINA)
-        return "监听已连接\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->
+        val state = when {
+            !NotificationAccess.isEnabled(context) -> "通知读取权限未开启"
+            PaymentNotificationService.isConnected -> "监听已连接"
+            ListenerRecovery.checkingInitialConnection -> "正在检查监听连接，尚未确认已连接"
+            else -> "监听未连接，正在尝试恢复"
+        }
+        val eventTime = prefs.getLong("listener_time", 0)
+        val event = if (eventTime > 0) "\n最近状态 ${format.format(Date(eventTime))}：${prefs.getString("listener_event", "未知")}" else ""
+        val visible = runCatching { context.getSystemService(android.app.NotificationManager::class.java)
+            .activeNotifications.any { it.id == ListenerProtectionService.NOTIFICATION_ID } }.getOrNull()
+        val protection = when {
+            !ListenerProtection.isEnabled(context) -> "后台保护：已关闭"
+            ListenerProtectionService.isRunning && visible == false -> "后台保护：运行中（通知栏未显示）"
+            ListenerProtectionService.isRunning -> "后台保护：运行中"
+            else -> "后台保护：当前未运行"
+        }
+        return state + "\n" + protection + event + "\n\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->
             val time = prefs.getLong("${source}_time", 0L)
             if (time == 0L) "$source：尚未收到通知" else {
                 val saved = prefs.getLong("${source}_saved", 0L)
                 "$source · 最近处理 ${format.format(Date(time))}\n${prefs.getString("${source}_result", "未知")}" +
-                    if (saved > 0) "\n最近记账：${format.format(Date(saved))}" else "\n本版本诊断暂无成功记录"
+                    if (saved > 0) "\n最近记账：${format.format(Date(saved))}" else "\n尚无成功记录"
             }
         }
     }
