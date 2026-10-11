@@ -12,6 +12,8 @@ import com.example.lightledger.R
 import com.example.lightledger.databinding.ActivityMainBinding
 import com.example.lightledger.notification.NotificationAccess
 import com.example.lightledger.notification.PaymentNotificationService
+import com.example.lightledger.notification.ListenerRecovery
+import com.example.lightledger.notification.ListenerProtection
 
 class MainActivity : LedgerActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -45,7 +47,9 @@ class MainActivity : LedgerActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         SystemBarInsets.apply(binding.root)
-        binding.enableAutomatic.setOnClickListener { NotificationAccess.openSettings(this) }
+        binding.enableAutomatic.setOnClickListener {
+            if (NotificationAccess.isEnabled(this)) NotificationAccess.repair(this) else NotificationAccess.openSettings(this)
+        }
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             showRoot(item.itemId)
             true
@@ -56,6 +60,8 @@ class MainActivity : LedgerActivity() {
 
     override fun onResume() {
         super.onResume()
+        ListenerRecovery.check(this)
+        ListenerProtection.startIfEnabled(this)
         disconnectedAt = null
         accessHandler.removeCallbacks(accessCheck)
         accessCheck.run()
@@ -78,15 +84,15 @@ class MainActivity : LedgerActivity() {
 
     private fun refreshAccessNotice() {
         val enabled = NotificationAccess.isEnabled(this)
-        NotificationAccess.reconnectIfNeeded(this)
+        ListenerRecovery.check(this)
         val connected = enabled && PaymentNotificationService.isConnected
         if (!enabled || connected) disconnectedAt = null
         else if (disconnectedAt == null) disconnectedAt = SystemClock.elapsedRealtime()
         val needsReconnect = enabled && !connected &&
             SystemClock.elapsedRealtime() - (disconnectedAt ?: SystemClock.elapsedRealtime()) >= 5_000L
         binding.accessBanner.visibility = if (!enabled || needsReconnect) View.VISIBLE else View.GONE
-        val message = if (!enabled) "自动记账未开启，请允许通知读取" else "监听未连接，请关闭再开启通知读取"
-        val action = if (!enabled) "去开启" else "重新开启"
+        val message = if (!enabled) "自动记账未开启，请允许通知读取" else "监听已断开，正在自动重连"
+        val action = if (!enabled) "去开启" else "修复连接"
         if (binding.accessMessage.text.toString() != message) binding.accessMessage.text = message
         if (binding.enableAutomatic.text.toString() != action) binding.enableAutomatic.text = action
         (supportFragmentManager.findFragmentById(R.id.pageContainer) as? SettingsFragment)?.refreshStatus()

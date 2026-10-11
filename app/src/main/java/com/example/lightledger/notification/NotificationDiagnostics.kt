@@ -32,7 +32,7 @@ object NotificationDiagnostics {
 
     fun summary(context: Context): String {
         if (!NotificationAccess.isEnabled(context)) return "通知读取权限未开启。请点“通知访问设置”。"
-        if (!PaymentNotificationService.isConnected) return "读取权限已开启，但监听尚未连接。打开应用后点“刷新诊断”；若仍未连接，请关闭再开启通知读取权限。"
+        if (!PaymentNotificationService.isConnected) return "读取权限已开启，正在尝试重连。请在“我的”开启后台保护、允许后台运行；仍未连接时可重新开启通知读取权限。"
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.CHINA)
         return "监听已连接\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->

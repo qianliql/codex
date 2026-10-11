@@ -87,9 +87,12 @@ class NavigationAndAccess070Test {
             assertEquals(View.GONE, banner.visibility)
             idle(6_000)
             assertEquals(View.VISIBLE, banner.visibility)
-            assertTrue(activity.findViewById<TextView>(R.id.accessMessage).text.toString().contains("关闭再开启"))
-            assertEquals("重新开启", activity.findViewById<TextView>(R.id.enableAutomatic).text.toString())
+            assertTrue(activity.findViewById<TextView>(R.id.accessMessage).text.toString().contains("正在自动重连"))
+            assertEquals("修复连接", activity.findViewById<TextView>(R.id.enableAutomatic).text.toString())
             activity.findViewById<View>(R.id.enableAutomatic).performClick()
+            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as androidx.appcompat.app.AlertDialog
+            dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE).performClick()
+            idle()
             val intent = shadowOf(activity).nextStartedActivity
             assertEquals(if (android.os.Build.VERSION.SDK_INT >= 30) Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS else Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS, intent.action)
             service.onListenerConnected(); idle(2_000)

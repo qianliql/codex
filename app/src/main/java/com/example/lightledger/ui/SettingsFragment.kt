@@ -15,6 +15,9 @@ import com.example.lightledger.LedgerApp
 import com.example.lightledger.backup.BackupCodec
 import com.example.lightledger.databinding.FragmentSettingsBinding
 import com.example.lightledger.notification.NotificationAccess
+import com.example.lightledger.notification.ListenerRecovery
+import com.example.lightledger.notification.ListenerProtection
+import com.example.lightledger.notification.ListenerProtectionService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,7 +28,16 @@ import java.util.Locale
 import java.io.ByteArrayOutputStream
 
 class SettingsFragment : Fragment() {
-    private val postPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { refreshStatus() }
+    private var pendingProtection = false
+    private var refreshingProtection = false
+    private val postPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (pendingProtection) {
+            pendingProtection = false
+            if (NotificationAccess.canPost(requireContext())) enableProtection()
+            else Toast.makeText(requireContext(), "允许发送通知后，才能显示后台保护状态", Toast.LENGTH_LONG).show()
+        }
+        refreshStatus()
+    }
     private val createBackup = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) writeExport(uri)
     }
@@ -45,19 +57,58 @@ class SettingsFragment : Fragment() {
         b.importBackup.setOnClickListener { openBackup.launch(arrayOf("*/*")) }
         b.notificationSettings.setOnClickListener { NotificationAccess.openSettings(requireActivity()) }
         b.quickNotificationSettings.setOnClickListener { NotificationAccess.requestPostPermissionOrOpenSettings(requireActivity(), postPermission) }
+        b.backgroundSettings.setOnClickListener { NotificationAccess.backgroundGuide(requireActivity()) }
+        b.backgroundProtection.setOnCheckedChangeListener { _, checked ->
+            if (!refreshingProtection) {
+                when {
+                    !checked -> ListenerProtection.disable(requireContext())
+                    !NotificationAccess.isEnabled(requireContext()) -> {
+                        Toast.makeText(requireContext(), "请先允许通知读取", Toast.LENGTH_SHORT).show()
+                        NotificationAccess.openSettings(requireActivity())
+                    }
+                    !NotificationAccess.canPost(requireContext()) -> {
+                        pendingProtection = true
+                        NotificationAccess.requestPostPermissionOrOpenSettings(requireActivity(), postPermission)
+                    }
+                    else -> enableProtection()
+                }
+                refreshStatus()
+            }
+        }
         return b.root
     }
     override fun onResume() {
         super.onResume()
+        if (pendingProtection && NotificationAccess.canPost(requireContext())) {
+            pendingProtection = false
+            enableProtection()
+        }
         refreshStatus()
     }
+    private fun enableProtection() {
+        if (!ListenerProtection.enable(requireContext())) Toast.makeText(requireContext(), "后台保护未能启动，请检查系统后台限制", Toast.LENGTH_LONG).show()
+    }
     internal fun refreshStatus() {
-        NotificationAccess.reconnectIfNeeded(requireContext())
+        ListenerRecovery.check(requireContext())
         binding?.themeSettings?.text = "主题配色 · ${LedgerThemes.selected(requireContext()).label}"
         binding?.notificationStatus?.text = when {
             !NotificationAccess.isEnabled(requireContext()) -> "通知自动记账：未开启"
             com.example.lightledger.notification.PaymentNotificationService.isConnected -> "通知自动记账：监听已连接"
-            else -> "通知自动记账：等待监听连接"
+            else -> "通知自动记账：正在尝试重连"
+        }
+        refreshingProtection = true
+        binding?.backgroundProtection?.isChecked = ListenerProtection.isEnabled(requireContext())
+        refreshingProtection = false
+        binding?.protectionStatus?.text = when {
+            !ListenerProtection.isEnabled(requireContext()) -> "显示常驻状态通知，闲置时自动尝试重连"
+            !NotificationAccess.isEnabled(requireContext()) -> "请先允许通知读取，后台保护已暂停"
+            ListenerProtectionService.isRunning -> "后台保护运行中 · 常驻通知无声音"
+            else -> "后台保护等待启动，请检查系统后台限制"
+        }
+        binding?.batteryStatus?.text = when {
+            NotificationAccess.backgroundRestricted(requireContext()) -> "系统已限制后台运行，请允许后台活动"
+            NotificationAccess.batteryUnrestricted(requireContext()) -> "已允许不受电池优化限制"
+            else -> "电池优化未豁免，闲置时可能被系统限制"
         }
         binding?.quickNotificationStatus?.text = if (NotificationAccess.canPost(requireContext())) "快捷分类通知：已开启" else "快捷分类通知：未开启"
     }
