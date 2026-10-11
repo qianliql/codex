@@ -54,7 +54,7 @@ object NotificationDiagnostics {
             ListenerProtectionService.isRunning -> "后台保护：运行中"
             else -> "后台保护：当前未运行"
         }
-        return state + "\n" + protection + event + "\n\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->
+        return state + "\n" + protection + event + "\n\n" + ProcessExitDiagnostics.summary(context) + "\n\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->
             val time = prefs.getLong("${source}_time", 0L)
             if (time == 0L) "$source：尚未收到通知" else {
                 val saved = prefs.getLong("${source}_saved", 0L)

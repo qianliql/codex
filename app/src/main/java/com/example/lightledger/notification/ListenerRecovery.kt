@@ -19,6 +19,7 @@ import android.util.Log
 object ListenerRecovery {
     internal const val WATCH_JOB = 9201
     internal const val RETRY_JOB = 9202
+    internal const val TASK_REMOVED_JOB = 9401
     private val handler = Handler(Looper.getMainLooper())
     private var retry: Runnable? = null
     private var retryDelay = 5_000L
@@ -26,6 +27,17 @@ object ListenerRecovery {
     private var observedDisconnect = false
     internal val checkingInitialConnection: Boolean get() = !observedDisconnect &&
         waitingSince?.let { SystemClock.elapsedRealtime() - it < 15_000L } != false
+
+    fun afterTaskRemoved(context: Context): Boolean {
+        return if (ListenerProtection.isEnabled(context) && NotificationAccess.isEnabled(context)) {
+            // The process can be killed while the listener still reports connected.
+            scheduleIfAbsent(context.applicationContext, TASK_REMOVED_JOB, periodic = false)
+        } else false
+    }
+
+    fun cancelTaskRemovedCheck(context: Context) {
+        context.getSystemService(JobScheduler::class.java).cancel(TASK_REMOVED_JOB)
+    }
 
     fun disconnected(context: Context) {
         observedDisconnect = true
@@ -53,6 +65,7 @@ object ListenerRecovery {
         val app = context.applicationContext
         ListenerBindingRepair.restoreInterruptedReset(app)
         val scheduler = app.getSystemService(JobScheduler::class.java)
+        val prefs = app.getSharedPreferences("listener_recovery", 0)
         if (!NotificationAccess.isEnabled(app)) {
             handler.removeCallbacksAndMessages(null)
             retry = null
@@ -61,6 +74,8 @@ object ListenerRecovery {
             observedDisconnect = false
             scheduler.cancel(WATCH_JOB)
             scheduler.cancel(RETRY_JOB)
+            scheduler.cancel(TASK_REMOVED_JOB)
+            if (prefs.contains("waiting_started")) prefs.edit().remove("waiting_started").commit()
             ListenerProtection.stop(app)
             return
         }
@@ -73,16 +88,22 @@ object ListenerRecovery {
             NotificationAccess.resetRebindThrottle()
             waitingSince = null
             observedDisconnect = false
+            if (prefs.contains("waiting_started")) prefs.edit().remove("waiting_started").commit()
         } else {
             val now = SystemClock.elapsedRealtime()
             if (waitingSince == null) waitingSince = now
             NotificationAccess.reconnectIfNeeded(app)
-            val prefs = app.getSharedPreferences("listener_recovery", 0)
             val wall = System.currentTimeMillis()
+            var waitingStarted = prefs.getLong("waiting_started", 0L)
+            if (waitingStarted == 0L || waitingStarted > wall) {
+                waitingStarted = wall
+                prefs.edit().putLong("waiting_started", wall).commit()
+            }
             val lastReset = prefs.getLong("last_reset", 0L)
-            if (now - waitingSince!! >= 60_000L && (lastReset == 0L || wall < lastReset || wall - lastReset >= 600_000L)) {
+            val waited = maxOf(now - waitingSince!!, wall - waitingStarted)
+            if (waited >= 60_000L && (lastReset == 0L || wall < lastReset || wall - lastReset >= 600_000L)) {
                 // Throttle failed attempts too, so an OEM rejection cannot cause a reset loop.
-                prefs.edit().putLong("last_reset", wall).apply()
+                prefs.edit().putLong("last_reset", wall).commit()
                 if (ListenerBindingRepair.reset(app)) {
                     NotificationDiagnostics.lifecycle(app, "已请求重新绑定监听")
                 } else NotificationDiagnostics.lifecycle(app, "重新绑定请求未完成")
@@ -100,16 +121,16 @@ object ListenerRecovery {
         }
     }
 
-    private fun scheduleIfAbsent(context: Context, id: Int, periodic: Boolean) {
+    private fun scheduleIfAbsent(context: Context, id: Int, periodic: Boolean): Boolean {
         val scheduler = context.getSystemService(JobScheduler::class.java)
         // Replacing a periodic job on every UI check would continually postpone it.
-        if (scheduler.getPendingJob(id) != null) return
+        if (scheduler.getPendingJob(id) != null) return true
         val builder = JobInfo.Builder(id, ComponentName(context, ListenerRecoveryJob::class.java))
             .setPersisted(true)
         if (periodic) builder.setPeriodic(15 * 60_000L)
         else builder.setMinimumLatency(30_000L).setBackoffCriteria(30_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
-        runCatching { scheduler.schedule(builder.build()) }
-            .onFailure { Log.w("ListenerRecovery", "Could not schedule recovery", it) }
+        return runCatching { scheduler.schedule(builder.build()) == JobScheduler.RESULT_SUCCESS }
+            .onFailure { Log.w("ListenerRecovery", "Could not schedule recovery", it) }.getOrDefault(false)
     }
 }
 
@@ -126,7 +147,8 @@ class ListenerRecoveryJob : JobService() {
     }
     override fun onStopJob(params: JobParameters): Boolean {
         handler.removeCallbacksAndMessages(null)
-        return params.jobId == ListenerRecovery.RETRY_JOB && NotificationAccess.isEnabled(this) && !PaymentNotificationService.isConnected
+        return params.jobId in setOf(ListenerRecovery.RETRY_JOB, ListenerRecovery.TASK_REMOVED_JOB) &&
+            NotificationAccess.isEnabled(this) && !PaymentNotificationService.isConnected
     }
 }
 

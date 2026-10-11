@@ -265,7 +265,7 @@ class ListenerRecovery092Test {
             System.getProperty("lightledger.preview.dir")?.let { directory ->
                 val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
                 root.draw(Canvas(bitmap))
-                File(directory, "LightLedger-0.9.3-settings-api${RuntimeEnvironment.getApiLevel()}.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                File(directory, "LightLedger-0.9.4-settings-api${RuntimeEnvironment.getApiLevel()}.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 bitmap.recycle()
             }
         } finally { controller.pause().stop().destroy() }

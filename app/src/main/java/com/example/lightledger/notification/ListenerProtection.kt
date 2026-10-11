@@ -29,6 +29,7 @@ object ListenerProtection {
     fun disable(context: Context) {
         context.getSharedPreferences("listener_protection", 0).edit().putBoolean("enabled", false).apply()
         stop(context)
+        ListenerRecovery.cancelTaskRemovedCheck(context)
     }
     fun startIfEnabled(context: Context): Boolean {
         if (!isEnabled(context) || !NotificationAccess.isEnabled(context)) return false
@@ -76,6 +77,7 @@ class ListenerProtectionService : Service() {
             if (Build.VERSION.SDK_INT >= 34) startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
             else startForeground(NOTIFICATION_ID, notification)
             isRunning = true
+            ProcessExitDiagnostics.protection(this, true)
         } catch (e: RuntimeException) {
             Log.w("ListenerProtection", "Could not enter foreground", e)
             stopSelf()
@@ -112,13 +114,16 @@ class ListenerProtectionService : Service() {
     }
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        NotificationDiagnostics.lifecycle(this, "最近任务已划掉，后台保护继续运行")
+        ProcessExitDiagnostics.taskRemoved(this)
+        val scheduled = ListenerRecovery.afterTaskRemoved(this)
+        NotificationDiagnostics.lifecycle(this, if (scheduled) "已收到最近任务移除，已安排恢复检查" else "已收到最近任务移除，未能安排恢复检查")
         handler.removeCallbacks(check)
         check.run()
     }
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         isRunning = false
+        ProcessExitDiagnostics.protection(this, false)
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
