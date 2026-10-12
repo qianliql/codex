@@ -10,7 +10,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = Application::class, sdk = [29])
 class BatchDeleteTest {
     private fun transaction(id: Long, type: TransactionType = TransactionType.EXPENSE, refundOf: Long? = null) =

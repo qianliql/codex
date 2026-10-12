@@ -23,7 +23,7 @@ import java.io.File
 import java.time.Duration
 import java.util.Calendar
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = Application::class, sdk = [29])
 class Upgrade060Test {
     private fun database() = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), LedgerDatabase::class.java).allowMainThreadQueries().build()

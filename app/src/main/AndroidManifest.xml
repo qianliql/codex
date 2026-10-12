@@ -24,6 +24,11 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+        <provider android:name=".notification.ListenerRuntimeProvider" android:authorities="${applicationId}.listener-runtime" android:exported="false" />
+        <!-- OCR and UI startup providers must initialize in the process that uses them. -->
+        <provider android:name="com.google.mlkit.common.internal.MlKitInitProvider" android:process=":ui" />
+        <provider android:name="androidx.startup.InitializationProvider" android:process=":ui" />
+        <activity android:name="com.google.android.gms.common.api.GoogleApiActivity" android:process=":ui" />
         <receiver android:name=".notification.QuickCategoryReceiver" android:exported="false" />
         <receiver android:name=".notification.ProtectionNotificationReceiver" android:exported="false" />
         <service android:name=".notification.ListenerRecoveryJob" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true" />
@@ -36,16 +41,16 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
-        <activity android:name=".ui.ThemeActivity" android:exported="false" />
-        <activity android:name=".ui.ExpenseRankActivity" android:exported="false" />
-        <activity android:windowSoftInputMode="adjustResize" android:name=".ui.TransactionSearchActivity" android:exported="false" />
-        <activity android:windowSoftInputMode="adjustResize" android:name=".ui.TransactionEditorActivity" android:exported="false" />
-        <activity android:windowSoftInputMode="adjustResize" android:name=".ui.ScreenshotImportActivity" android:exported="false" />
-        <activity android:windowSoftInputMode="adjustResize" android:name=".ui.BatchImportActivity" android:exported="false" />
-        <activity android:windowSoftInputMode="adjustResize" android:name=".ui.TagsActivity" android:exported="false" />
-        <activity android:windowSoftInputMode="adjustResize" android:name=".ui.MerchantRulesActivity" android:exported="false" />
-        <activity android:windowSoftInputMode="adjustResize" android:name=".ui.CategoryActivity" android:exported="false" />
-        <activity android:windowSoftInputMode="adjustResize" android:name=".ui.MainActivity" android:exported="true">
+        <activity android:process=":ui" android:name=".ui.ThemeActivity" android:exported="false" />
+        <activity android:process=":ui" android:name=".ui.ExpenseRankActivity" android:exported="false" />
+        <activity android:process=":ui" android:windowSoftInputMode="adjustResize" android:name=".ui.TransactionSearchActivity" android:exported="false" />
+        <activity android:process=":ui" android:windowSoftInputMode="adjustResize" android:name=".ui.TransactionEditorActivity" android:exported="false" />
+        <activity android:process=":ui" android:windowSoftInputMode="adjustResize" android:name=".ui.ScreenshotImportActivity" android:exported="false" />
+        <activity android:process=":ui" android:windowSoftInputMode="adjustResize" android:name=".ui.BatchImportActivity" android:exported="false" />
+        <activity android:process=":ui" android:windowSoftInputMode="adjustResize" android:name=".ui.TagsActivity" android:exported="false" />
+        <activity android:process=":ui" android:windowSoftInputMode="adjustResize" android:name=".ui.MerchantRulesActivity" android:exported="false" />
+        <activity android:process=":ui" android:windowSoftInputMode="adjustResize" android:name=".ui.CategoryActivity" android:exported="false" />
+        <activity android:process=":ui" android:windowSoftInputMode="adjustResize" android:name=".ui.MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

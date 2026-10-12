@@ -33,7 +33,7 @@ import java.lang.reflect.Modifier
 import java.time.Duration
 
 /** Checks component lifecycle and synthetic payments; does not emulate OEM process cleaning. */
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = LedgerApp::class, sdk = [26, 29, 35], qualifiers = "w360dp-h760dp-xxhdpi", shadows = [ModernBindingShadow::class])
 class ListenerContinuity093Test {
     private val app get() = RuntimeEnvironment.getApplication() as LedgerApp

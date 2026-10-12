@@ -16,7 +16,10 @@ internal object DetectedPaymentMethod {
         prefs.edit().putString("method", method.name).putLong("time", timestamp).apply()
     }
 
-    fun latest(context: Context): PaymentMethod? = when (
+    fun latest(context: Context): PaymentMethod? = if (ListenerRuntime.ownsListener(context)) localLatest(context)
+        else ListenerRuntime.state(context).paymentMethod
+
+    internal fun localLatest(context: Context): PaymentMethod? = when (
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("method", null)
     ) {
         PaymentMethod.WECHAT.name -> PaymentMethod.WECHAT

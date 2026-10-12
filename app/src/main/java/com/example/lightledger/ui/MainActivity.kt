@@ -11,9 +11,7 @@ import androidx.fragment.app.FragmentTransaction
 import com.example.lightledger.R
 import com.example.lightledger.databinding.ActivityMainBinding
 import com.example.lightledger.notification.NotificationAccess
-import com.example.lightledger.notification.PaymentNotificationService
-import com.example.lightledger.notification.ListenerRecovery
-import com.example.lightledger.notification.ListenerProtection
+import com.example.lightledger.notification.ListenerRuntime
 
 class MainActivity : LedgerActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -64,8 +62,7 @@ class MainActivity : LedgerActivity() {
 
     override fun onResume() {
         super.onResume()
-        ListenerRecovery.check(this)
-        ListenerProtection.startIfEnabled(this)
+        ListenerRuntime.check(this, startProtection = true)
         disconnectedAt = null
         accessHandler.removeCallbacks(accessCheck)
         accessCheck.run()
@@ -88,15 +85,22 @@ class MainActivity : LedgerActivity() {
 
     private fun refreshAccessNotice() {
         val enabled = NotificationAccess.isEnabled(this)
-        ListenerRecovery.check(this)
-        val connected = enabled && PaymentNotificationService.isConnected
+        ListenerRuntime.check(this)
+        val runtime = ListenerRuntime.state(this)
+        val connected = enabled && runtime.connected
         if (!enabled || connected) disconnectedAt = null
         else if (disconnectedAt == null) disconnectedAt = SystemClock.elapsedRealtime()
-        val needsReconnect = enabled && !connected && !ListenerRecovery.checkingInitialConnection &&
+        val needsReconnect = enabled && !connected && runtime.available && !runtime.checking &&
             SystemClock.elapsedRealtime() - (disconnectedAt ?: SystemClock.elapsedRealtime()) >= 5_000L
-        binding.accessBanner.visibility = if (!enabled || needsReconnect) View.VISIBLE else View.GONE
-        val message = if (!enabled) "自动记账未开启，请允许通知读取" else "监听未连接，正在自动恢复"
-        val action = if (!enabled) "去开启" else "修复连接"
+        val unavailable = enabled && !runtime.available &&
+            SystemClock.elapsedRealtime() - (disconnectedAt ?: SystemClock.elapsedRealtime()) >= 15_000L
+        binding.accessBanner.visibility = if (!enabled || needsReconnect || unavailable) View.VISIBLE else View.GONE
+        val message = when {
+            !enabled -> "自动记账未开启，请允许通知读取"
+            unavailable -> "后台状态暂不可读，请检查系统后台限制"
+            else -> "监听未连接，正在自动恢复"
+        }
+        val action = if (!enabled) "去开启" else if (unavailable) "检查后台" else "修复连接"
         if (binding.accessMessage.text.toString() != message) binding.accessMessage.text = message
         if (binding.enableAutomatic.text.toString() != action) binding.enableAutomatic.text = action
         (supportFragmentManager.findFragmentById(R.id.pageContainer) as? SettingsFragment)?.refreshStatus()

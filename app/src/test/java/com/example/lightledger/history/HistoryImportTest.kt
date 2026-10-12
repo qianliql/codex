@@ -13,7 +13,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = Application::class, sdk = [29])
 class HistoryImportTest {
     private fun bill(key: String, note: String? = "测试备注…", category: String = "购物") =

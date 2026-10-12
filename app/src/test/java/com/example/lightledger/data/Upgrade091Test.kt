@@ -16,7 +16,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = Application::class, sdk = [29])
 class Upgrade091Test {
     @Test fun schema7MigrationPreservesExistingIdsAndFinancialReferencesAndEmptyCategories() = runBlocking {

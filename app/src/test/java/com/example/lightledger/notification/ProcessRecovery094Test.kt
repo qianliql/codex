@@ -27,7 +27,7 @@ import org.robolectric.shadows.ShadowNotificationListenerService
 import org.robolectric.util.ReflectionHelpers
 import java.time.Duration
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = LedgerApp::class, sdk = [26, 29, 35], shadows = [ModernBindingShadow::class])
 class ProcessRecovery094Test {
     private val app get() = RuntimeEnvironment.getApplication() as LedgerApp

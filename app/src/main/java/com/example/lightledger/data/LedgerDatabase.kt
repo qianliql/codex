@@ -80,6 +80,7 @@ abstract class LedgerDatabase : RoomDatabase() {
         @Volatile private var instance: LedgerDatabase? = null
         fun get(context: Context): LedgerDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, "ledger.db")
+                .enableMultiInstanceInvalidation()
                 .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6, migration6To7, migration7To8)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
 import java.util.Calendar
 import java.util.TimeZone
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = Application::class, sdk = [29, 35], qualifiers = "w320dp-h700dp-xxhdpi")
 class MonthSelectionTest {
     @Test fun monthBoundsHandleLeapYearsYearEdgesAndRetainOtherFilters() {

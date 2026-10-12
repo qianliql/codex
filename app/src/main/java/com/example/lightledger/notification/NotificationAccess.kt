@@ -47,11 +47,9 @@ object NotificationAccess {
 
     fun repair(activity: Activity) {
         MaterialAlertDialogBuilder(activity).setTitle("恢复自动记账")
-            .setMessage(NotificationDiagnostics.summary(activity) + "\n\n最近任务划掉应用时，请保持后台保护开启。系统强行停止后需重新打开应用。")
+            .setMessage(ListenerRuntime.state(activity).details + "\n\n请保持后台保护开启。部分系统划掉最近任务仍会清理应用；可锁定轻账本卡片并从主页退出。系统强行停止后需重新打开应用。")
             .setPositiveButton("尝试重连") { _, _ ->
-                resetRebindThrottle()
-                ListenerBindingRepair.reset(activity)
-                ListenerRecovery.check(activity)
+                ListenerRuntime.repair(activity)
             }
             .setNeutralButton("后台设置") { _, _ -> backgroundGuide(activity) }
             .setNegativeButton("通知权限") { _, _ -> openSettings(activity) }.show()

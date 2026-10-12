@@ -36,6 +36,8 @@ class TransactionEditorActivity : LedgerActivity() {
     private var selectedCategoryId: Long? = null
     private val typeCategories = mutableMapOf<TransactionType, Long?>()
     private var selectedPaymentMethod = PaymentMethod.WECHAT
+    private var paymentChosenManually = false
+    private var applyingPaymentSelection = false
     private val categoryChips = mutableMapOf<Long, Chip>()
     private val paymentChips = mutableMapOf<PaymentMethod, Chip>()
     private val selectedTime = Calendar.getInstance()
@@ -99,6 +101,8 @@ class TransactionEditorActivity : LedgerActivity() {
                 if (selectedType == TransactionType.EXPENSE) repository.suggestedCategory(binding.merchant.text?.toString())?.let(::selectCategory)
             } else {
                 selectCategory(categories.firstOrNull { it.name == "其他" }?.id)
+                val detected = com.example.lightledger.notification.ListenerRuntime.latestPayment(this@TransactionEditorActivity)
+                if (!paymentChosenManually && detected != null) selectPaymentMethod(detected)
             }
             binding.save.isEnabled = true
         }
@@ -195,7 +199,12 @@ class TransactionEditorActivity : LedgerActivity() {
     private fun showPaymentChoices() {
         PaymentMethod.entries.filter { it != PaymentMethod.OTHER }.forEach { method ->
             val chip = choiceChip(UiFormat.method(method)).apply {
-                setOnCheckedChangeListener { _, checked -> if (checked) selectedPaymentMethod = method }
+                setOnCheckedChangeListener { _, checked ->
+                    if (checked) {
+                        selectedPaymentMethod = method
+                        if (!applyingPaymentSelection) paymentChosenManually = true
+                    }
+                }
             }
             paymentChips[method] = chip
             binding.paymentMethodChips.addView(chip)
@@ -206,8 +215,11 @@ class TransactionEditorActivity : LedgerActivity() {
 
     private fun selectPaymentMethod(method: PaymentMethod) {
         selectedPaymentMethod = method
-        val chip = paymentChips[method]
-        if (chip != null) chip.isChecked = true else binding.paymentMethodChips.clearCheck()
+        applyingPaymentSelection = true
+        try {
+            val chip = paymentChips[method]
+            if (chip != null) chip.isChecked = true else binding.paymentMethodChips.clearCheck()
+        } finally { applyingPaymentSelection = false }
     }
 
     private fun choiceChip(label: String): Chip {

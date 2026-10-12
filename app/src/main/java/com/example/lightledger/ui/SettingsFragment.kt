@@ -15,9 +15,7 @@ import com.example.lightledger.LedgerApp
 import com.example.lightledger.backup.BackupCodec
 import com.example.lightledger.databinding.FragmentSettingsBinding
 import com.example.lightledger.notification.NotificationAccess
-import com.example.lightledger.notification.ListenerRecovery
-import com.example.lightledger.notification.ListenerProtection
-import com.example.lightledger.notification.ListenerProtectionService
+import com.example.lightledger.notification.ListenerRuntime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,6 +28,7 @@ import java.io.ByteArrayOutputStream
 class SettingsFragment : Fragment() {
     private var pendingProtection = false
     private var refreshingProtection = false
+    private var changingProtection = false
     private val postPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         if (pendingProtection) {
             pendingProtection = false
@@ -62,7 +61,13 @@ class SettingsFragment : Fragment() {
         b.backgroundProtection.setOnCheckedChangeListener { _, checked ->
             if (!refreshingProtection) {
                 when {
-                    !checked -> ListenerProtection.disable(requireContext())
+                    !checked -> {
+                        changingProtection = true
+                        ListenerRuntime.disable(requireContext()) {
+                            changingProtection = false
+                            if (isAdded) refreshStatus()
+                        }
+                    }
                     !NotificationAccess.isEnabled(requireContext()) -> {
                         Toast.makeText(requireContext(), "请先允许通知读取", Toast.LENGTH_SHORT).show()
                         NotificationAccess.openSettings(requireActivity())
@@ -87,24 +92,34 @@ class SettingsFragment : Fragment() {
         refreshStatus()
     }
     private fun enableProtection() {
-        if (!ListenerProtection.enable(requireContext())) Toast.makeText(requireContext(), "后台保护未能启动，请检查系统后台限制", Toast.LENGTH_LONG).show()
+        changingProtection = true
+        ListenerRuntime.enable(requireContext()) { started ->
+            changingProtection = false
+            if (!isAdded) return@enable
+            if (!started) Toast.makeText(requireContext(), "后台保护未能启动，请检查系统后台限制", Toast.LENGTH_LONG).show()
+            refreshStatus()
+        }
     }
     internal fun refreshStatus() {
-        ListenerRecovery.check(requireContext())
+        ListenerRuntime.check(requireContext())
+        val runtime = ListenerRuntime.state(requireContext())
         binding?.themeSettings?.text = "主题配色 · ${LedgerThemes.selected(requireContext()).label}"
         binding?.notificationStatus?.text = when {
             !NotificationAccess.isEnabled(requireContext()) -> "通知自动记账：未开启"
-            com.example.lightledger.notification.PaymentNotificationService.isConnected -> "通知自动记账：监听已连接"
-            ListenerRecovery.checkingInitialConnection -> "通知自动记账：正在检查连接"
+            !runtime.available -> "通知自动记账：正在获取后台状态"
+            runtime.connected -> "通知自动记账：监听已连接"
+            runtime.checking -> "通知自动记账：正在检查连接"
             else -> "通知自动记账：未连接，正在恢复"
         }
         refreshingProtection = true
-        binding?.backgroundProtection?.isChecked = ListenerProtection.isEnabled(requireContext())
+        if (!changingProtection) binding?.backgroundProtection?.isChecked = runtime.protectionEnabled
+        binding?.backgroundProtection?.isEnabled = runtime.available && !changingProtection
         refreshingProtection = false
         binding?.protectionStatus?.text = when {
-            !ListenerProtection.isEnabled(requireContext()) -> "开启后划掉页面仍可运行；强行停止后需重新打开"
+            !runtime.available -> "正在检查后台保护状态"
+            !runtime.protectionEnabled -> "开启后台保护有助于持续监听；系统清理仍可能中断"
             !NotificationAccess.isEnabled(requireContext()) -> "请先允许通知读取，后台保护已暂停"
-            ListenerProtectionService.isRunning -> "后台保护运行中 · 常驻通知无声音"
+            runtime.protectionRunning -> "后台保护运行中 · 常驻通知无声音"
             else -> "后台保护等待启动，请检查系统后台限制"
         }
         binding?.batteryStatus?.text = when {

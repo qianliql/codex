@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
 import java.time.Duration
 
 /** Exercises the real fragment, asynchronous Room reads, scrolling, and selection together. */
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = LedgerApp::class, sdk = [29], qualifiers = "w360dp-h760dp-xxhdpi")
 class TransactionsPagingTest {
     @Test fun scrollingLoadsAllPagesOnceAndKeepsSelectionThenRefreshesAndFilters() {

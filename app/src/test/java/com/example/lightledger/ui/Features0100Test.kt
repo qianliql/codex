@@ -37,7 +37,7 @@ import java.io.File
 import java.lang.reflect.Modifier
 import java.time.Duration
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = LedgerApp::class, sdk = [29, 35], qualifiers = "w360dp-h760dp-xxhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class Features0100Test {

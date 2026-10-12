@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowDialog
 import java.time.Duration
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = LedgerApp::class, sdk = [29], qualifiers = "w360dp-h760dp-xxhdpi")
 class Features060Test {
     class PreviewActivity : LedgerActivity() {

@@ -34,7 +34,7 @@ import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
 /** Isolated Android layouts; preview amounts are fictional and no phone data is read. */
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = Application::class, sdk = [29, 35], qualifiers = "w360dp-h760dp-xxhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class LayoutCompatibilityTest {

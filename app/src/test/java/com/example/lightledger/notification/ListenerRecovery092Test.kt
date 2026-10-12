@@ -41,7 +41,7 @@ import java.io.File
 import java.lang.reflect.Modifier
 import java.time.Duration
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(com.example.lightledger.LedgerTestRunner::class)
 @Config(application = LedgerApp::class, sdk = [26, 29, 35], qualifiers = "w360dp-h760dp-xxhdpi", shadows = [ModernBindingShadow::class])
 class ListenerRecovery092Test {
     private val app get() = RuntimeEnvironment.getApplication() as LedgerApp
