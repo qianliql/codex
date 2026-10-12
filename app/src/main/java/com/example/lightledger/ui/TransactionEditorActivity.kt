@@ -200,7 +200,7 @@ class TransactionEditorActivity : LedgerActivity() {
             paymentChips[method] = chip
             binding.paymentMethodChips.addView(chip)
         }
-        selectPaymentMethod(PaymentMethod.WECHAT)
+        selectPaymentMethod(com.example.lightledger.notification.DetectedPaymentMethod.latest(this) ?: PaymentMethod.WECHAT)
         EditorChoiceRows.fitPayments(binding.paymentMethodChips)
     }
 

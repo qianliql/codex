@@ -11,14 +11,16 @@ data class TransactionFilter(
     val search: String = "", val start: Long = 0L, val end: Long = Long.MAX_VALUE,
     val categoryId: Long = -1L, val tagId: Long = 0L, val method: String = "",
     val source: String = "", val type: String = "", val pendingOnly: Boolean = false,
+    val amountPendingOnly: Boolean = false,
 ) {
     val activeCount get() = listOf(search.isNotBlank(), start != 0L || end != Long.MAX_VALUE,
-        categoryId != -1L, tagId != 0L, method.isNotBlank(), source.isNotBlank(), type.isNotBlank(), pendingOnly).count { it }
+        categoryId != -1L, tagId != 0L, method.isNotBlank(), source.isNotBlank(), type.isNotBlank(), pendingOnly, amountPendingOnly).count { it }
     val validDates get() = start >= 0 && end > start
     fun writeTo(bundle: Bundle) = bundle.apply {
         putString("filter_search", search); putLong("filter_start", start); putLong("filter_end", end)
         putLong("filter_category", categoryId); putLong("filter_tag", tagId); putString("filter_method", method)
         putString("filter_source", source); putString("filter_type", type); putBoolean("pending_only", pendingOnly)
+        putBoolean("amount_pending_only", amountPendingOnly)
     }
     fun description(categories: List<Category>, tags: List<Tag>): String {
         val date = SimpleDateFormat("yyyy.MM.dd", Locale.CHINA)
@@ -31,6 +33,7 @@ data class TransactionFilter(
             TransactionType.entries.firstOrNull { it.name == type }?.let(UiFormat::type),
             sourceLabel(source).takeIf { source.isNotBlank() },
             if (pendingOnly) "待处理" else null,
+            if (amountPendingOnly) "待确认金额" else null,
         ).joinToString(" · ")
     }
     companion object {
@@ -38,7 +41,7 @@ data class TransactionFilter(
         fun readFrom(b: Bundle?) = if (b == null) TransactionFilter() else TransactionFilter(
             b.getString("filter_search").orEmpty(), b.getLong("filter_start", 0), b.getLong("filter_end", Long.MAX_VALUE),
             b.getLong("filter_category", -1), b.getLong("filter_tag", 0), b.getString("filter_method").orEmpty(),
-            b.getString("filter_source").orEmpty(), b.getString("filter_type").orEmpty(), b.getBoolean("pending_only"))
+            b.getString("filter_source").orEmpty(), b.getString("filter_type").orEmpty(), b.getBoolean("pending_only"), b.getBoolean("amount_pending_only"))
         fun sourceLabel(value: String) = when (value) { "NOTIFICATION" -> "支付通知"; "SCREENSHOT" -> "截图导入"; "MANUAL" -> "手动记录"; else -> "不限" }
     }
 }

@@ -76,6 +76,9 @@ class TransactionsFragment : Fragment() {
             filter = TransactionFilter.readFrom(savedInstanceState)
             searchApplied = savedInstanceState.getBoolean("search_applied")
             monthCursor = StatisticsPeriod(savedInstanceState.getInt("month_year", monthCursor.year), savedInstanceState.getInt("month_number", monthCursor.month!!))
+        } else if (arguments?.getBoolean("amount_pending_only") == true) {
+            filter = TransactionFilter.readFrom(arguments)
+            searchApplied = true
         }
         selectedIds.addAll(savedInstanceState?.getLongArray("selected_ids")?.toList().orEmpty())
         arguments?.getLong("select_id", 0)?.takeIf { it > 0 && savedInstanceState == null }?.let { selectedIds.add(it) }
@@ -223,7 +226,7 @@ class TransactionsFragment : Fragment() {
             try {
                 val page = repository.searchTransactions(filter.search, filter.start, filter.end,
                     filter.categoryId, filter.tagId, filter.method, filter.source, filter.type,
-                    pendingOnly, pageSize, rows.size)
+                    pendingOnly, pageSize, rows.size, filter.amountPendingOnly)
                 if (generation != queryGeneration || binding !== b) return@launch
                 rows.addAll(page)
                 hasMore = page.size == pageSize
@@ -233,11 +236,16 @@ class TransactionsFragment : Fragment() {
                 }
                 b.emptyTransactions.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
                 b.emptyTransactions.text = when {
+                    filter.amountPendingOnly -> "没有待确认金额的账单"
                     pendingOnly -> "没有符合条件的待处理账单"
                     nonDateCount > 0 -> "没有找到匹配账单\n试试减少条件或更换关键词"
                     else -> "这个月份还没有账单\n点击“记一笔”或切换月份"
                 }
-                b.resultCount.text = (if (hasMore) "已显示 ${rows.size} 笔" else "${rows.size} 笔") + if (nonDateCount > 0) " · 筛选 $nonDateCount 项" else " · 长按多选"
+                b.resultCount.text = (if (hasMore) "已显示 ${rows.size} 笔" else "${rows.size} 笔") + when {
+                    filter.amountPendingOnly -> " · 待确认金额"
+                    nonDateCount > 0 -> " · 筛选 $nonDateCount 项"
+                    else -> " · 长按多选"
+                }
                 updateSelectionUi()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
@@ -302,7 +310,7 @@ class TransactionsFragment : Fragment() {
         if (exact != null) monthCursor = exact
         val canReset = searchApplied || nonDateCount > 0 || exact == null
         b.resetSearch.visibility = if (canReset) View.VISIBLE else View.GONE
-        b.billPageTitle.visibility = if (canReset) View.GONE else View.VISIBLE
+        b.billPageTitle.visibility = if (canReset) View.INVISIBLE else View.VISIBLE
         val label = exact?.label() ?: if (filter.start == 0L && filter.end == Long.MAX_VALUE) "全部月份" else "自选日期"
         b.billMonthLabel.text = "$label ▾"
         b.billMonthPicker.contentDescription = "$label，点击选择年份和月份"

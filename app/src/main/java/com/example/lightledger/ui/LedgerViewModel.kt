@@ -13,6 +13,7 @@ class LedgerViewModel(application: Application) : AndroidViewModel(application) 
     val transactions = repository.transactions
     val transactionChangeSignal = repository.transactionChangeSignal
     val recentTransactions = repository.recentTransactions
+    val unconfirmedAmountCount = repository.unconfirmedAmountCount
 
     private val currentDay = MutableLiveData(dayStart())
     val monthlyTotals = currentDay.switchMap { day -> monthBounds(day).let { repository.totals(it.first, it.second) } }

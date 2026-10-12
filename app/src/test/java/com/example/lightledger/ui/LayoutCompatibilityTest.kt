@@ -181,7 +181,7 @@ class LayoutCompatibilityTest {
                     root.findViewById<View>(R.id.normalActions).visibility = if (mode == "selection") View.GONE else View.VISIBLE
                     root.findViewById<View>(R.id.selectionBar).visibility = if (mode == "selection") View.VISIBLE else View.GONE
                     root.findViewById<View>(R.id.resetSearch).visibility = if (mode == "search") View.VISIBLE else View.GONE
-                    root.findViewById<View>(R.id.billPageTitle).visibility = if (mode == "search") View.GONE else View.VISIBLE
+                    root.findViewById<View>(R.id.billPageTitle).visibility = if (mode == "search") View.INVISIBLE else View.VISIBLE
                     root.findViewById<TextView>(R.id.resultCount).text = if (mode == "search") "100 笔 · 筛选 3 项" else "100 笔 · 长按多选"
                     shadowOf(Looper.getMainLooper()).idle()
                     ViewCompat.dispatchApplyWindowInsets(root, bars(24, 24))

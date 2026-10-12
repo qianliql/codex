@@ -7,6 +7,7 @@ class LedgerRepository(private val dao: LedgerDao) {
     val transactions = dao.allTransactions()
     val transactionChangeSignal = dao.transactionChangeSignal()
     val recentTransactions = dao.recentTransactions(5)
+    val unconfirmedAmountCount = dao.unconfirmedAmountCount()
     fun totals(start: Long, end: Long) = dao.totals(start, end)
     fun categoryTotals(start: Long, end: Long) = dao.categoryTotals(start, end)
     suspend fun categoryList() = dao.categoryList()
@@ -15,8 +16,8 @@ class LedgerRepository(private val dao: LedgerDao) {
     fun expenseRankSummary(start: Long, end: Long, categoryId: Long) = dao.expenseRankSummary(start, end, categoryId)
     suspend fun searchTransactions(search: String, start: Long, end: Long, categoryId: Long,
         tagId: Long, method: String, source: String, type: String, pendingOnly: Boolean,
-        limit: Int, offset: Int) = dao.searchTransactions(search, start, end, categoryId, tagId,
-            method, source, type, pendingOnly, limit, offset)
+        limit: Int, offset: Int, amountPendingOnly: Boolean = false) = dao.searchTransactions(search, start, end, categoryId, tagId,
+            method, source, type, pendingOnly, limit, offset, amountPendingOnly)
     suspend fun save(transaction: LedgerTransaction): Long {
         if (transaction.id != 0L) {
             val linkedRefunds = dao.linkedRefundTotal(transaction.id)

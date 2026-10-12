@@ -30,6 +30,7 @@ class StatisticsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val b = binding ?: return
+        b.statisticsBack.setOnClickListener { requireActivity().onBackPressedDispatcher.onBackPressed() }
         if (savedInstanceState?.containsKey("stats_year") == true) model.choose(StatisticsPeriod(savedInstanceState.getInt("stats_year"), savedInstanceState.getInt("stats_month").takeIf { it != 0 }))
         b.periodLabel.setOnClickListener { model.period.value?.let { period -> MonthSelection.show(requireContext(), period, model::choose) } }
         b.monthMode.setOnClickListener { model.switchMode(false) }

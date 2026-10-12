@@ -66,6 +66,7 @@
                     <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="账单来源" android:layout_marginTop="16dp" />
                     <com.google.android.material.chip.ChipGroup android:id="@+id/sourceChoices" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" app:chipSpacingHorizontal="5dp" app:chipSpacingVertical="2dp" app:singleSelection="true" app:selectionRequired="true" />
                     <com.google.android.material.checkbox.MaterialCheckBox android:id="@+id/pendingOnly" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginTop="10dp" android:text="只看待处理账单" android:textSize="14sp" android:textColor="?attr/colorOnSurface" />
+                    <com.google.android.material.checkbox.MaterialCheckBox android:id="@+id/amountPendingOnly" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="只看待确认金额" android:textSize="14sp" android:textColor="?attr/colorOnSurface" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

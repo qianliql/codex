@@ -48,6 +48,11 @@ class HomeFragment : Fragment() {
         b.viewTransactions.setOnClickListener { (requireActivity() as MainActivity).openBills() }
         b.viewAllTransactions.setOnClickListener { (requireActivity() as MainActivity).openBills() }
         b.viewStatistics.setOnClickListener { (requireActivity() as MainActivity).openStatistics() }
+        b.viewUnconfirmedAmounts.setOnClickListener { (requireActivity() as MainActivity).openUnconfirmedAmounts() }
+        model.unconfirmedAmountCount.observe(viewLifecycleOwner) { count ->
+            b.unconfirmedAmountCount.text = "$count 笔"
+            b.viewUnconfirmedAmounts.contentDescription = "待确认金额，$count 笔，点击查看所有月份的待确认账单"
+        }
         b.toggleAmounts.setOnClickListener {
             hidden = !hidden
             viewLifecycleOwner.lifecycleScope.launch { repository.putSetting("home_hide_amounts", hidden.toString()) }

@@ -53,6 +53,7 @@ internal class TransactionSearchForm(
         b.tagChoice.setAdapter(ArrayAdapter(b.root.context, R.layout.row_filter_dropdown, tagOptions.map { it.second }))
         b.tagChoice.setOnItemClickListener { _, _, position, _ -> draft = draft.copy(tagId = tagOptions[position].first); updateCount() }
         b.pendingOnly.setOnCheckedChangeListener { _, checked -> if (!rendering) { draft = draft.copy(pendingOnly = checked); updateCount() } }
+        b.amountPendingOnly.setOnCheckedChangeListener { _, checked -> if (!rendering) { draft = draft.copy(amountPendingOnly = checked); updateCount() } }
         b.keyword.doAfterTextChanged { if (!rendering) { draft = draft.copy(search = it.toString()); updateCount() } }
         b.keyword.setOnEditorActionListener { _, action, _ -> if (action == EditorInfo.IME_ACTION_SEARCH) { submit(); true } else false }
         b.startDate.setOnClickListener { chooseDate(draft.start.takeIf { it > 0 } ?: System.currentTimeMillis()) { draft = draft.copy(start = it); select(b.datePresets, SearchDatePreset.CUSTOM); renderDates(); updateCount() } }
@@ -96,7 +97,8 @@ internal class TransactionSearchForm(
         select(b.sourceChoices, draft.source); select(b.datePresets, preset())
         b.tagChoice.setText(tagOptions.firstOrNull { it.first == draft.tagId }?.second ?: "指定标签", false)
         b.pendingOnly.isChecked = draft.pendingOnly
-        more(draft.tagId != 0L || draft.source.isNotBlank() || draft.pendingOnly)
+        b.amountPendingOnly.isChecked = draft.amountPendingOnly
+        more(draft.tagId != 0L || draft.source.isNotBlank() || draft.pendingOnly || draft.amountPendingOnly)
         renderDates(); renderCategoryVisibility(); rendering = false; updateCount()
     }
     private fun categoryOptions(): List<Category> = when (draft.type) {

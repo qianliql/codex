@@ -34,6 +34,10 @@ class MainActivity : LedgerActivity() {
 
     fun openStatistics() = openPage(StatisticsFragment())
 
+    fun openUnconfirmedAmounts() = openPage(TransactionsFragment().apply {
+        arguments = TransactionFilter(amountPendingOnly = true).writeTo(Bundle())
+    })
+
     private fun openPage(fragment: Fragment) {
         pageTransaction().replace(R.id.pageContainer, fragment)
             .addToBackStack("home_detail").commit()

@@ -69,6 +69,8 @@ class PaymentNotificationService : NotificationListenerService() {
             outcome(PaymentTextParser.rejectionReason(title, text))
             return
         }
+        DetectedPaymentMethod.remember(context, parsed.paymentMethod,
+            sbn.postTime.takeIf { it > 0 } ?: System.currentTimeMillis())
         val keyInput = "${sbn.packageName}|${sbn.key}|${sbn.postTime}"
         val key = MessageDigest.getInstance("SHA-256").digest(keyInput.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }
