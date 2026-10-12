@@ -85,7 +85,7 @@ interface LedgerDao {
     @Query("SELECT COUNT(*) FROM transactions")
     fun transactionChangeSignal(): LiveData<Int>
 
-    @Query("SELECT COUNT(*) FROM transactions WHERE amountCents = 0 AND classificationStatus = 'NEED_CONFIRM'")
+    @Query("SELECT COUNT(*) FROM transactions WHERE amountConfirmed = 0 OR (amountCents = 0 AND classificationStatus = 'NEED_CONFIRM')")
     fun unconfirmedAmountCount(): LiveData<Int>
 
     @Query("""SELECT t.*, c.name AS categoryName, c.iconKey AS categoryIconKey FROM transactions t
@@ -97,8 +97,8 @@ interface LedgerDao {
         AND (:method = '' OR t.paymentMethod = :method)
         AND (:source = '' OR t.source = :source)
         AND (:type = '' OR t.type = :type)
-        AND (:pendingOnly = 0 OR t.classificationStatus != 'CLASSIFIED')
-        AND (:amountPendingOnly = 0 OR (t.amountCents = 0 AND t.classificationStatus = 'NEED_CONFIRM'))
+        AND (:pendingOnly = 0 OR t.classificationStatus != 'CLASSIFIED' OR t.amountConfirmed = 0)
+        AND (:amountPendingOnly = 0 OR t.amountConfirmed = 0 OR (t.amountCents = 0 AND t.classificationStatus = 'NEED_CONFIRM'))
         ORDER BY t.timestamp DESC, t.id DESC LIMIT :limit OFFSET :offset""")
     suspend fun searchTransactions(search: String, start: Long, end: Long, categoryId: Long,
         tagId: Long, method: String, source: String, type: String, pendingOnly: Boolean,

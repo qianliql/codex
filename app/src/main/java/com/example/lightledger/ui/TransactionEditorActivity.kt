@@ -133,7 +133,13 @@ class TransactionEditorActivity : LedgerActivity() {
 
     private fun showExisting(t: LedgerTransaction) {
         showMoreDetails(false)
-        binding.pageTitle.text = "编辑账单"
+        val pending = t.requiresAmountConfirmation()
+        binding.pageTitle.text = if (pending) "确认金额" else "编辑账单"
+        binding.save.text = if (pending) "确认并保存" else "保存"
+        if (pending) {
+            binding.ocrWarning.text = if (t.amountCents > 0) "请核对金额，正确可直接确认，也可修改后确认" else "请填写正确金额后确认"
+            binding.ocrWarning.visibility = View.VISIBLE
+        }
         binding.amount.setText(if (t.amountCents == 0L && t.classificationStatus == ClassificationStatus.NEED_CONFIRM) "" else BigDecimal.valueOf(t.amountCents, 2).toPlainString())
         setType(t.type)
         selectPaymentMethod(t.paymentMethod)
@@ -327,6 +333,7 @@ class TransactionEditorActivity : LedgerActivity() {
         val transaction = (old ?: LedgerTransaction(amountCents = amount, type = type, timestamp = selectedTime.timeInMillis,
             source = if (isScreenshot) TransactionSource.SCREENSHOT else TransactionSource.MANUAL)).copy(
             amountCents = amount,
+            amountConfirmed = true,
             type = type,
             merchant = binding.merchant.text.toString().trim().ifEmpty { null },
             categoryId = selectedCategory?.id,

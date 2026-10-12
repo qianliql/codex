@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [LedgerTransaction::class, Category::class, Tag::class, TransactionTagCrossRef::class, MerchantRule::class, AppSetting::class], version = 8, exportSchema = true)
+@Database(entities = [LedgerTransaction::class, Category::class, Tag::class, TransactionTagCrossRef::class, MerchantRule::class, AppSetting::class], version = 10, exportSchema = true)
 @TypeConverters(LedgerConverters::class)
 abstract class LedgerDatabase : RoomDatabase() {
     abstract fun dao(): LedgerDao
@@ -77,11 +77,24 @@ abstract class LedgerDatabase : RoomDatabase() {
                 }
             }
         }
+        internal val migration8To9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN amountConfirmed INTEGER NOT NULL DEFAULT 1")
+                // Preserve the user's edits to older automatic bills.
+                db.execSQL("UPDATE transactions SET amountConfirmed=0 WHERE source='NOTIFICATION' AND updatedAt<=createdAt")
+            }
+        }
+        internal val migration9To10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Repair the pre-release schema9 installed during this phone test.
+                db.execSQL("UPDATE transactions SET amountConfirmed=1 WHERE source='NOTIFICATION' AND amountConfirmed=0 AND updatedAt>createdAt")
+            }
+        }
         @Volatile private var instance: LedgerDatabase? = null
         fun get(context: Context): LedgerDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, "ledger.db")
                 .enableMultiInstanceInvalidation()
-                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6, migration6To7, migration7To8)
+                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6, migration6To7, migration7To8, migration8To9, migration9To10)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

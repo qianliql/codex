@@ -47,7 +47,7 @@ class Upgrade091Test {
             }).build())
             helper.writableDatabase; helper.close()
             val db = Room.databaseBuilder(context, LedgerDatabase::class.java, name)
-                .addMigrations(LedgerDatabase.migration7To8).allowMainThreadQueries().build()
+                .addMigrations(LedgerDatabase.migration7To8, LedgerDatabase.migration8To9, LedgerDatabase.migration9To10).allowMainThreadQueries().build()
             try {
                 val dao = db.dao(); val categories = dao.categoryList()
                 if (empty) assertTrue(categories.isEmpty()) else {
@@ -83,7 +83,7 @@ class Upgrade091Test {
             assertTrue(CategoryCatalog.choices(dao.categoryList(), TransactionType.EXPENSE).isEmpty())
             assertTrue(CategoryPriority.notification(dao.categoryList()).isEmpty())
             val before = dao.snapshot(); val encoded = BackupCodec.encode(before)
-            assertEquals(3, JSONObject(encoded).getInt("schemaVersion"))
+            assertEquals(4, JSONObject(encoded).getInt("schemaVersion"))
             repository.restore(BackupCodec.decode(encoded)); assertEquals(before, dao.snapshot())
             dao.insertCategory(Category(name = "其他"))
             repository.deleteCategory(dao.categoryList().single { it.id == id })

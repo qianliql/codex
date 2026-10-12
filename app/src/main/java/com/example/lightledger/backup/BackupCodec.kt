@@ -4,13 +4,13 @@ import com.example.lightledger.data.*
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Backup v3 preserves income/expense category membership, including renamed categories. */
+/** Backup v4 also preserves the independent amount confirmation state. */
 object BackupCodec {
     private fun JSONObject.putNullable(key: String, value: String?) { put(key, value ?: JSONObject.NULL) }
     private fun JSONObject.putNullable(key: String, value: Long?) { put(key, value ?: JSONObject.NULL) }
 
     fun encode(data: LedgerSnapshot): String = JSONObject().apply {
-        put("schemaVersion", 3)
+        put("schemaVersion", 4)
         put("categories", JSONArray().apply { data.categories.forEach { c -> put(JSONObject().apply {
             put("id", c.id); put("name", c.name); put("isSystem", c.isSystem); put("priority", c.priority); put("sortOrder", c.sortOrder); put("iconKey", c.iconKey)
             put("scope", c.scope.name)
@@ -22,6 +22,7 @@ object BackupCodec {
             putNullable("note", t.note); put("classificationStatus", t.classificationStatus.name)
             putNullable("refundOfTransactionId", t.refundOfTransactionId); putNullable("notificationKey", t.notificationKey)
             putNullable("ocrText", t.ocrText); put("createdAt", t.createdAt); put("updatedAt", t.updatedAt)
+            put("amountConfirmed", t.amountConfirmed)
         }) } })
         put("tags", JSONArray().apply { data.tags.forEach { put(JSONObject().apply { put("id", it.id); put("name", it.name) }) } })
         put("transactionTags", JSONArray().apply { data.transactionTags.forEach {
@@ -35,7 +36,8 @@ object BackupCodec {
 
     fun decode(json: String): LedgerSnapshot {
         val root = JSONObject(json)
-        require(root.getInt("schemaVersion") in 1..3) { "不支持的备份版本" }
+        val version = root.getInt("schemaVersion")
+        require(version in 1..4) { "不支持的备份版本" }
         fun <T> rows(key: String, convert: (JSONObject) -> T): List<T> {
             val array = root.getJSONArray(key)
             return (0 until array.length()).map { convert(array.getJSONObject(it)) }
@@ -51,7 +53,9 @@ object BackupCodec {
                 timestamp = t.getLong("timestamp"), source = TransactionSource.valueOf(t.getString("source")),
                 note = t.nullableString("note"), classificationStatus = ClassificationStatus.valueOf(t.getString("classificationStatus")),
                 refundOfTransactionId = t.nullableLong("refundOfTransactionId"), notificationKey = t.nullableString("notificationKey"),
-                ocrText = t.nullableString("ocrText"), createdAt = t.getLong("createdAt"), updatedAt = t.getLong("updatedAt")) },
+                ocrText = t.nullableString("ocrText"), createdAt = t.getLong("createdAt"), updatedAt = t.getLong("updatedAt"),
+                amountConfirmed = if (version >= 4) t.getBoolean("amountConfirmed") else
+                    t.getString("source") != TransactionSource.NOTIFICATION.name || t.getLong("updatedAt") > t.getLong("createdAt")) },
             tags = rows("tags") { Tag(it.getLong("id"), it.getString("name")) },
             transactionTags = rows("transactionTags") { TransactionTagCrossRef(it.getLong("transactionId"), it.getLong("tagId")) },
             merchantRules = rows("merchantRules") { MerchantRule(it.getLong("id"), it.getString("keyword"), it.getLong("categoryId"), it.getBoolean("exactMatch")) },

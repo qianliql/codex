@@ -88,7 +88,11 @@ data class LedgerTransaction(
     val ocrText: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "1") val amountConfirmed: Boolean = true,
 )
+
+fun LedgerTransaction.requiresAmountConfirmation(): Boolean = !amountConfirmed ||
+    (amountCents == 0L && classificationStatus == ClassificationStatus.NEED_CONFIRM)
 
 data class TransactionRow(
     @Embedded val transaction: LedgerTransaction,

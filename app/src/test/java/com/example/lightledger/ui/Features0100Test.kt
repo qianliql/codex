@@ -104,6 +104,7 @@ class Features0100Test {
             assertEquals(2, bills.size)
             assertEquals(setOf(1234L to PaymentMethod.WECHAT, 567L to PaymentMethod.ALIPAY), bills.map { it.amountCents to it.paymentMethod }.toSet())
             assertTrue(bills.all { it.source == TransactionSource.NOTIFICATION && it.amountCents > 0 })
+            assertTrue(bills.all { !it.amountConfirmed })
             val prefs = app.getSharedPreferences("detected_payment_method", 0)
             val latestTime = prefs.getLong("time", 0)
             DetectedPaymentMethod.remember(app, PaymentMethod.WECHAT, latestTime - 1)

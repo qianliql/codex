@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.lightledger.data.TransactionRow
 import com.example.lightledger.data.TransactionType
 import com.example.lightledger.data.ClassificationStatus
+import com.example.lightledger.data.requiresAmountConfirmation
 import com.example.lightledger.R
 import com.example.lightledger.databinding.RowTransactionBinding
 
@@ -38,7 +39,8 @@ class TransactionAdapter(private val onLongClick: ((Long) -> Unit)? = null, priv
         holder.binding.notePreview.text = note?.let { "备注：$it" }.orEmpty()
         holder.binding.notePreview.visibility = if (note == null) android.view.View.GONE else android.view.View.VISIBLE
         val category = if (transaction.classificationStatus == ClassificationStatus.NEED_CONFIRM) "待确认" else row.categoryName ?: "未分类"
-        holder.binding.subtitle.text = "$category · ${UiFormat.method(transaction.paymentMethod)} · ${UiFormat.type(transaction.type)}"
+        holder.binding.subtitle.text = "$category · ${UiFormat.method(transaction.paymentMethod)} · ${UiFormat.type(transaction.type)}" +
+            if (transaction.requiresAmountConfirmation() && transaction.amountCents > 0) " · 金额待确认" else ""
         holder.binding.timestamp.text = java.text.SimpleDateFormat("yyyy.MM.dd HH:mm", java.util.Locale.CHINA).format(java.util.Date(transaction.timestamp))
         CategoryIcons.apply(holder.binding.categoryIcon, row.categoryName ?: "未分类", row.categoryIconKey)
         holder.binding.selectionCheck.visibility = if (selecting) android.view.View.VISIBLE else android.view.View.GONE

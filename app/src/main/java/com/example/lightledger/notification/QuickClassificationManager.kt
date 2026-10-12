@@ -44,7 +44,7 @@ object QuickClassificationManager {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_edit)
             .setContentTitle("刚刚支出 ${UiFormat.money(amountCents)}")
-            .setContentText("点选分类；点开可选择更多分类")
+            .setContentText("点选分类；点开核对金额与分类")
             .setAutoCancel(true)
             .setContentIntent(openIntent)
 

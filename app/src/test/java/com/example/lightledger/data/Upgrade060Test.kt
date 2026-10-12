@@ -113,7 +113,7 @@ class Upgrade060Test {
         }).build())
         helper.writableDatabase
         helper.close()
-        val db = Room.databaseBuilder(context, LedgerDatabase::class.java, name).addMigrations(LedgerDatabase.migration6To7, LedgerDatabase.migration7To8).allowMainThreadQueries().build()
+        val db = Room.databaseBuilder(context, LedgerDatabase::class.java, name).addMigrations(LedgerDatabase.migration6To7, LedgerDatabase.migration7To8, LedgerDatabase.migration8To9, LedgerDatabase.migration9To10).allowMainThreadQueries().build()
         try {
             val dao = db.dao()
             assertEquals(11L, dao.transaction(1)!!.categoryId)

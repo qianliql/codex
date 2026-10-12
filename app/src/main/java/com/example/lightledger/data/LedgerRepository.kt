@@ -51,7 +51,7 @@ class LedgerRepository(private val dao: LedgerDao) {
         ))
     }
     suspend fun saveNotification(transaction: LedgerTransaction): Long? {
-        val classified = classifyByMerchant(transaction)
+        val classified = classifyByMerchant(transaction.copy(amountConfirmed = false))
         val linked = if (classified.type == TransactionType.REFUND) {
             val candidate = com.example.lightledger.refund.RefundMatcher.confidentMatch(classified, refundCandidates(classified))
             if (candidate != null) classified.copy(refundOfTransactionId = candidate.id, classificationStatus = ClassificationStatus.UNCLASSIFIED)
