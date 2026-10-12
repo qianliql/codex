@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="?attr/ledgerBackground">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/ledger_page_gutter">
+        <TextView style="@style/LedgerPageTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="我的" />
+        <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="26dp" android:layout_marginBottom="10dp" android:text="账本设置" />
+        <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp">
+                <com.google.android.material.button.MaterialButton android:id="@+id/themeSettings" app:icon="@drawable/ic_grid" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="主题配色" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/manageCategories" app:icon="@drawable/ic_grid" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="分类管理" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/manageTags" app:icon="@drawable/ic_tag" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="标签管理" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/manageMerchantRules" app:icon="@drawable/ic_rule" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="商户分类规则" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="应用设置" />
+        <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <com.google.android.material.button.MaterialButton android:id="@+id/openSettings" app:icon="@drawable/ic_settings" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="8dp" android:text="设置" />
+        </com.google.android.material.card.MaterialCardView>
+        <TextView android:id="@+id/appVersion" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:gravity="center" />
+    </LinearLayout>
+</ScrollView>

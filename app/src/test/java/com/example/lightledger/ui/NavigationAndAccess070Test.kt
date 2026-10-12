@@ -67,7 +67,7 @@ class NavigationAndAccess070Test {
             val bills = activity.supportFragmentManager.findFragmentById(R.id.pageContainer) as TransactionsFragment
             assertEquals(123L, bills.arguments!!.getLong("select_id"))
             nav.selectedItemId = R.id.nav_settings; idle()
-            assertTrue(activity.supportFragmentManager.findFragmentById(R.id.pageContainer) is SettingsFragment)
+            assertTrue(activity.supportFragmentManager.findFragmentById(R.id.pageContainer) is MyFragment)
             assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
             nav.selectedItemId = R.id.nav_home; idle()
             activity.findViewById<View>(R.id.viewAllTransactions).performClick(); idle()

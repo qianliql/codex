@@ -4,7 +4,11 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.content.Intent
 import android.view.View
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
@@ -12,11 +16,15 @@ import com.example.lightledger.R
 import com.example.lightledger.databinding.ActivityMainBinding
 import com.example.lightledger.notification.NotificationAccess
 import com.example.lightledger.notification.ListenerRuntime
+import com.example.lightledger.update.UpdateManager
+import com.example.lightledger.update.UpdateState
+import kotlinx.coroutines.launch
 
 class MainActivity : LedgerActivity() {
     private lateinit var binding: ActivityMainBinding
     private val accessHandler = Handler(Looper.getMainLooper())
     private var disconnectedAt: Long? = null
+    private var permissionGuideOpen = false
     private val accessCheck = object : Runnable {
         override fun run() {
             refreshAccessNotice()
@@ -58,6 +66,10 @@ class MainActivity : LedgerActivity() {
         }
         binding.bottomNavigation.setOnItemReselectedListener { returnToRoot() }
         if (savedInstanceState == null) showRoot(R.id.nav_home)
+        lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            UpdateManager.state.collect { maybePromptUpdate(it) }
+        } }
+        UpdateManager.check(this, manual = false)
     }
 
     override fun onResume() {
@@ -70,17 +82,36 @@ class MainActivity : LedgerActivity() {
         val prefs = getSharedPreferences("permission_guide", MODE_PRIVATE)
         if (!enabled && !prefs.getBoolean("shown", false)) {
             prefs.edit().putBoolean("shown", true).apply()
+            permissionGuideOpen = true
             com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("开启自动记账")
                 .setMessage("允许轻账本读取微信、支付宝的支付通知，才能自动记录账单。点击后会打开系统授权页，在那里允许即可。")
                 .setNegativeButton("稍后", null)
-                .setPositiveButton("去允许") { _, _ -> NotificationAccess.openSettings(this) }.show()
+                .setPositiveButton("去允许") { _, _ -> NotificationAccess.openSettings(this) }
+                .setOnDismissListener { permissionGuideOpen = false; maybePromptUpdate(UpdateManager.state.value) }.show()
         }
     }
 
     override fun onPause() {
         accessHandler.removeCallbacks(accessCheck)
         super.onPause()
+    }
+
+    private fun maybePromptUpdate(value: UpdateState) {
+        val info = when (value) {
+            is UpdateState.Available -> value.info
+            is UpdateState.Ready -> value.info
+            else -> null
+        } ?: return
+        val prefs = getSharedPreferences("app_updates", MODE_PRIVATE)
+        if (permissionGuideOpen || info.minSdk > android.os.Build.VERSION.SDK_INT ||
+            prefs.getLong("last_prompted", 0) == info.code) return
+        prefs.edit().putLong("last_prompted", info.code).apply()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("发现新版本 ${info.name}").setMessage(info.notes)
+            .setNegativeButton("稍后", null)
+            .setPositiveButton("查看更新") { _, _ -> startActivity(Intent(this, AppUpdateActivity::class.java)) }
+            .show()
     }
 
     private fun refreshAccessNotice() {
@@ -103,7 +134,6 @@ class MainActivity : LedgerActivity() {
         val action = if (!enabled) "去开启" else if (unavailable) "检查后台" else "修复连接"
         if (binding.accessMessage.text.toString() != message) binding.accessMessage.text = message
         if (binding.enableAutomatic.text.toString() != action) binding.enableAutomatic.text = action
-        (supportFragmentManager.findFragmentById(R.id.pageContainer) as? SettingsFragment)?.refreshStatus()
     }
 
     private fun returnToRoot() {
@@ -114,7 +144,7 @@ class MainActivity : LedgerActivity() {
     private fun showRoot(id: Int) {
         returnToRoot()
         val fragment: Fragment = when (id) {
-            R.id.nav_settings -> SettingsFragment()
+            R.id.nav_settings -> MyFragment()
             else -> HomeFragment()
         }
         pageTransaction().replace(R.id.pageContainer, fragment).commit()

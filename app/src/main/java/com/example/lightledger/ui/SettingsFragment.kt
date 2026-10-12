@@ -45,13 +45,18 @@ class SettingsFragment : Fragment() {
     }
     private val repository by lazy { (requireActivity().application as LedgerApp).repository }
     private var binding: FragmentSettingsBinding? = null
+    private val statusHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val statusCheck = object : Runnable {
+        override fun run() {
+            if (isAdded && binding != null) refreshStatus()
+            statusHandler.postDelayed(this, 2_000L)
+        }
+    }
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val b = FragmentSettingsBinding.inflate(inflater, container, false)
         binding = b
-        b.themeSettings.setOnClickListener { startActivity(Intent(requireContext(), ThemeActivity::class.java)) }
-        b.manageCategories.setOnClickListener { startActivity(Intent(requireContext(), CategoryActivity::class.java)) }
-        b.manageTags.setOnClickListener { startActivity(Intent(requireContext(), TagsActivity::class.java)) }
-        b.manageMerchantRules.setOnClickListener { startActivity(Intent(requireContext(), MerchantRulesActivity::class.java)) }
+        b.currentVersion.text = "当前版本 ${com.example.lightledger.update.InstalledVersion.read(requireContext()).name}"
+        b.checkForUpdates.setOnClickListener { startActivity(Intent(requireContext(), AppUpdateActivity::class.java)) }
         b.exportBackup.setOnClickListener { createBackup.launch("lightledger_backup_${fileDate()}.json") }
         b.importBackup.setOnClickListener { openBackup.launch(arrayOf("*/*")) }
         b.notificationSettings.setOnClickListener { NotificationAccess.openSettings(requireActivity()) }
@@ -89,8 +94,10 @@ class SettingsFragment : Fragment() {
             pendingProtection = false
             enableProtection()
         }
-        refreshStatus()
+        statusHandler.removeCallbacks(statusCheck)
+        statusCheck.run()
     }
+    override fun onPause() { statusHandler.removeCallbacks(statusCheck); super.onPause() }
     private fun enableProtection() {
         changingProtection = true
         ListenerRuntime.enable(requireContext()) { started ->
@@ -103,7 +110,6 @@ class SettingsFragment : Fragment() {
     internal fun refreshStatus() {
         ListenerRuntime.check(requireContext())
         val runtime = ListenerRuntime.state(requireContext())
-        binding?.themeSettings?.text = "主题配色 · ${LedgerThemes.selected(requireContext()).label}"
         binding?.notificationStatus?.text = when {
             !NotificationAccess.isEnabled(requireContext()) -> "通知自动记账：未开启"
             !runtime.available -> "通知自动记账：正在获取后台状态"

@@ -74,7 +74,7 @@ class ListenerRuntime0101Test {
     @Test fun activitiesAreSeparateAndListenerIdentityAndPrivateBridgeArePreserved() {
         val info = app.packageManager.getPackageInfo(app.packageName,
             PackageManager.GET_ACTIVITIES or PackageManager.GET_SERVICES or PackageManager.GET_PROVIDERS or PackageManager.GET_RECEIVERS)
-        assertEquals(10, info.activities!!.count { it.name.startsWith("${app.packageName}.ui.") })
+        assertEquals(12, info.activities!!.count { it.name.startsWith("${app.packageName}.ui.") })
         assertTrue(info.activities!!.all { it.processName == "${app.packageName}:ui" })
         val listener = info.services!!.single { it.name == PaymentNotificationService::class.java.name }
         assertEquals(app.packageName, listener.processName)

@@ -10,6 +10,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.TestLifecycle
 import java.lang.reflect.Method
+import com.example.lightledger.update.*
+import java.io.File
 
 /** Supply Room's actual local Binder; Robolectric's default service binding returns null. */
 class LedgerTestRunner(testClass: Class<*>) : RobolectricTestRunner(testClass) {
@@ -21,6 +23,12 @@ class RoomTestLifecycle : DefaultTestLifecycle() {
     override fun beforeTest(method: Method) {
         super.beforeTest(method)
         val app = RuntimeEnvironment.getApplication()
+        UpdateManager.resetForTests()
+        UpdateManager.gateway = object : UpdateGateway {
+            override fun check(current: InstalledVersion): UpdateInfo? = null
+            override fun download(info: UpdateInfo, file: File, progress: (Long) -> Unit) = error("Unexpected network download in test")
+        }
+        app.getSharedPreferences("app_updates", 0).edit().clear().commit()
         val service = Robolectric.buildService(MultiInstanceInvalidationService::class.java).create().get()
         val intent = Intent(app, MultiInstanceInvalidationService::class.java)
         shadowOf(app).setComponentNameAndServiceForBindServiceForIntent(intent,

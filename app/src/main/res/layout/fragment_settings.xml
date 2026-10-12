@@ -1,16 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="?attr/ledgerBackground">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/ledger_page_gutter">
-        <TextView style="@style/LedgerPageTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="我的" />
-        <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="26dp" android:layout_marginBottom="10dp" android:text="账本设置" />
-        <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp">
-                <com.google.android.material.button.MaterialButton android:id="@+id/themeSettings" app:icon="@drawable/ic_grid" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="主题配色" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/manageCategories" app:icon="@drawable/ic_grid" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="分类管理" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/manageTags" app:icon="@drawable/ic_tag" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="标签管理" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/manageMerchantRules" app:icon="@drawable/ic_rule" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="商户分类规则" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
         <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="数据管理" />
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp">
@@ -24,13 +14,19 @@
                 <TextView android:id="@+id/notificationStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:gravity="center_vertical" android:clickable="true" android:focusable="true" android:contentDescription="查看自动记账连接详情" android:text="通知自动记账：未开启" android:textColor="?attr/colorOnSurface" android:textSize="15sp" android:textStyle="bold" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/notificationSettings" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="开启或管理自动记账权限" />
                 <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/backgroundProtection" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:minHeight="48dp" android:text="后台保护" android:textColor="?attr/colorOnSurface" android:textSize="15sp" />
-                <TextView android:id="@+id/protectionStatus" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="开启后划掉页面仍可运行；强行停止后需重新打开" />
+                <TextView android:id="@+id/protectionStatus" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="开启后台保护有助于持续监听；系统清理仍可能中断" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/backgroundSettings" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="允许后台运行" />
                 <TextView android:id="@+id/batteryStatus" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="系统电池限制状态" />
                 <TextView android:id="@+id/quickNotificationStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="快捷分类通知：未开启" android:textColor="?attr/colorOnSurface" android:textSize="15sp" android:textStyle="bold" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/quickNotificationSettings" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="快捷分类通知设置" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-        <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:gravity="center" android:text="轻账本 · 本机存储，离线使用" />
+        <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="版本与更新" />
+        <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <TextView android:id="@+id/currentVersion" style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="15sp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/checkForUpdates" style="@style/LedgerOutlineButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="检查更新" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 </ScrollView>

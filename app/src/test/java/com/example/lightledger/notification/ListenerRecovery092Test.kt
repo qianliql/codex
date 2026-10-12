@@ -240,10 +240,9 @@ class ListenerRecovery092Test {
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun settingsExposeProtectionWithoutAddingItemsToDataManagement() {
         setAccess(true)
-        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val controller = Robolectric.buildActivity(com.example.lightledger.ui.SettingsActivity::class.java).setup()
         try {
             val activity = controller.get()
-            activity.findViewById<BottomNavigationView>(R.id.bottomNavigation).selectedItemId = R.id.nav_settings
             activity.supportFragmentManager.executePendingTransactions()
             assertFalse(activity.findViewById<SwitchMaterial>(R.id.backgroundProtection).isChecked)
             assertTrue(activity.findViewById<TextView>(R.id.notificationStatus).text.toString().contains("正在检查连接"))
@@ -259,7 +258,7 @@ class ListenerRecovery092Test {
                 root.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(metrics.heightPixels, View.MeasureSpec.EXACTLY))
                 root.layout(0, 0, root.measuredWidth, root.measuredHeight)
             }
-            val scroll = activity.supportFragmentManager.findFragmentById(R.id.pageContainer)!!.requireView() as android.widget.ScrollView
+            val scroll = activity.supportFragmentManager.findFragmentById(R.id.settingsContainer)!!.requireView() as android.widget.ScrollView
             scroll.scrollTo(0, scroll.getChildAt(0).height)
             assertTrue(protection.width > 0)
             System.getProperty("lightledger.preview.dir")?.let { directory ->

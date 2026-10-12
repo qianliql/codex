@@ -22,4 +22,5 @@
 - Kotlin、XML、Room；金额使用整数分。compileSdk36、minSdk26、targetSdk35，JDK17。
 - 沿用Gradle包装器；验证命令为gradlew.bat assembleDebug testDebugUnitTest（Unix使用./gradlew）。
 - 本地数据变更使用事务，保持已有账单/分类/退款/标签关联；涉及导入和删除时核对失败回滚及重复处理规则。
-- App保持离线，不新增INTERNET权限。通知自动保存必须有可靠正数金额；日报、月报、汇总和失败/待支付消息跳过。
+- 用户已授权0.11.0应用内检查、下载并调用系统安装：INTERNET仅用于读取公开GitHub版本信息与下载安装包；账单、备份、通知和OCR继续本地处理，不上传。不接入账号、广告或分析服务。新增REQUEST_INSTALL_PACKAGES供用户确认系统安装，保持同签名覆盖升级。
+- 通知自动保存必须有可靠正数金额；日报、月报、汇总和失败/待支付消息跳过。
