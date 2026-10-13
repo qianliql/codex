@@ -1,6 +1,11 @@
 # 验证说明
 
-## 当前版本0.11.0
+## 当前版本0.11.1
+
+- `assembleDebug`、`testDebugUnitTest`通过，36组263项检查，0失败、0错误、0跳过。版本24、原证书SHA-256 `fb923df81c68c28f389d100c329c51095372a7461778360dd594f49006bc234a`，安装包51,668,405字节，SHA-256 `47c402c9732eacff859b88e288f9a156da0d87b2b9a6dd328341fcac30ea2d4d`。
+- Gitee公开镜像已发布，并从公开地址重新下载核对完整字节数与SHA-256；镜像回退逻辑有电脑端模拟测试。OPPO PFEM10 / ColorOS16同签名覆盖安装成功，升级前后113笔账单及其余五张表逐表摘要相同；通知读取授权、保护服务与监听绑定保留。手机通过新版镜像下载下一版本尚未实测，见[本版报告](updates/0.11.1.md)。
+
+## 上一版本0.11.0
 
 - `assembleDebug`与`testDebugUnitTest`实际成功，36套261项检查，0失败/错误/跳过；新增检查覆盖版本文件与资产一致性、无效地址/跳转、缺失或超长下载、缓存重试、APK包名/版本/签名/系统要求、设置页导航、版本显示和窄屏大字体。Windows模拟系统无法实际完成FileProvider到安装器的交接，留给真机验证。
 - 实际APK：versionCode23、minSdk26、targetSdk35、compileSdk36，原证书SHA-256 `fb923df81c68c28f389d100c329c51095372a7461778360dd594f49006bc234a`，v2签名有效；包含INTERNET、REQUEST_INSTALL_PACKAGES，合并清单移除OCR依赖的Data Transport上传组件。安装包51,846,806字节，SHA-256 `d781d1557d440c86673ae44a18ae1e8952924f0fef8ab5b18539977a896e9248`。

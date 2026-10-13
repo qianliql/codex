@@ -78,7 +78,7 @@ class SettingsAndUpdate0110Test {
     @Test fun downloadShowsNotesVerifiesPackageAndRequestsSystemPermission() {
         val content = byteArrayOf(1, 2, 3)
         val scratch = File(app.cacheDir, "hash-sample").apply { writeBytes(content) }
-        val info = UpdateInfo("0.12.0", 24, 26, "https://github.com/qianliql/codex/releases/download/v0.12.0/LightLedger-0.12.0-debug.apk",
+        val info = UpdateInfo("0.12.0", 25, 26, "https://github.com/qianliql/codex/releases/download/v0.12.0/LightLedger-0.12.0-debug.apk",
             UpdateApkVerifier.sha256(scratch), 3, "设置更简洁\n应用内下载更新", UpdateSpec.RELEASE_PAGE)
         scratch.delete()
         val pm = shadowOf(app.packageManager)
@@ -87,7 +87,7 @@ class SettingsAndUpdate0110Test {
         own.signingInfo = SigningInfo().also { shadowOf(it).setSignatures(arrayOf(Signature("aabb"))) }
         pm.installPackage(own)
         val archive = PackageInfo().apply {
-            packageName = app.packageName; versionName = info.name; versionCode = 24
+            packageName = app.packageName; versionName = info.name; versionCode = 25
             applicationInfo = ApplicationInfo().apply { minSdkVersion = 26 }
             signingInfo = SigningInfo().also { shadowOf(it).setSignatures(arrayOf(Signature("aabb"))) }
         }

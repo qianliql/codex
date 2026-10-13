@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
+import java.util.concurrent.CancellationException
 
 internal interface UpdateGateway {
     fun check(current: InstalledVersion): UpdateInfo?
@@ -18,7 +19,7 @@ internal class GitHubUpdateGateway(private val open: (String) -> HttpURLConnecti
         repeat(6) {
             require(UpdateSpec.trustedNetworkUrl(next)) { "更新地址无效" }
             val conn = open(next)
-            conn.connectTimeout = 12_000; conn.readTimeout = 15_000
+            conn.connectTimeout = 12_000; conn.readTimeout = 30_000
             conn.instanceFollowRedirects = false
             conn.setRequestProperty("User-Agent", "LightLedger-updater")
             conn.setRequestProperty("Accept", "application/vnd.github+json")
@@ -61,7 +62,29 @@ internal class GitHubUpdateGateway(private val open: (String) -> HttpURLConnecti
         return UpdateSpec.decode(release, manifest, current)
     }
     override fun download(info: UpdateInfo, file: File, progress: (Long) -> Unit) {
-        val conn = connection(info.apkUrl)
+        var firstFailure: Exception? = null
+        for (url in listOfNotNull(info.mirrorUrl, info.apkUrl)) {
+            try {
+                downloadFrom(url, info, file, progress)
+                if (url == info.mirrorUrl) require(UpdateApkVerifier.sha256(file) == info.sha256) { "镜像文件校验失败" }
+                return
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) {
+                val previousFailure = firstFailure
+                if (previousFailure == null) firstFailure = error
+                file.delete()
+                if (url == info.apkUrl) {
+                    if (previousFailure != null) error.addSuppressed(previousFailure)
+                    throw error
+                }
+                android.util.Log.w("LightLedgerUpdate", "Gitee mirror failed; trying GitHub", error)
+                progress(0)
+            }
+        }
+        throw firstFailure ?: IllegalStateException("更新地址不可用")
+    }
+    private fun downloadFrom(url: String, info: UpdateInfo, file: File, progress: (Long) -> Unit) {
+        val conn = connection(url)
         try {
             var bytes = 0L
             conn.inputStream.use { input -> file.outputStream().use { output ->

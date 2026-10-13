@@ -10,6 +10,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import org.robolectric.RuntimeEnvironment
 
 @RunWith(com.example.lightledger.LedgerTestRunner::class)
@@ -68,6 +69,25 @@ class UpdateProtocol0110Test {
             val progress = mutableListOf<Long>()
             GitHubUpdateGateway { Response(it, byteArrayOf(1, 2, 3)) }.download(info, file) { progress.add(it) }
             assertArrayEquals(byteArrayOf(1, 2, 3), file.readBytes()); assertEquals(3L, progress.last())
+        } finally { file.delete() }
+    }
+    @Test fun giteeMirrorFallsBackOnBadBytesAndUsesVerifiedMirrorWhenValid() {
+        val good = byteArrayOf(1, 2, 3)
+        val digest = MessageDigest.getInstance("SHA-256").digest(good).joinToString("") { "%02x".format(it.toInt() and 255) }
+        val mirror = "https://gitee.com/qianlihuo/money/releases/download/v0.11.1/LightLedger-0.11.1-debug.apk"
+        val origin = "https://github.com/qianliql/codex/releases/download/v0.11.1/LightLedger-0.11.1-debug.apk"
+        val info = UpdateInfo("0.11.1", 24, 26, origin, digest, good.size.toLong(), "镜像下载", UpdateSpec.RELEASE_PAGE, mirror)
+        val file = File(RuntimeEnvironment.getApplication().cacheDir, "mirror-test.part")
+        try {
+            val requested = mutableListOf<String>()
+            GitHubUpdateGateway { url -> requested.add(url); Response(url, if (url == mirror) byteArrayOf(3, 2, 1) else good) }
+                .download(info, file) {}
+            assertEquals(listOf(mirror, origin), requested)
+            assertArrayEquals(good, file.readBytes())
+            requested.clear()
+            GitHubUpdateGateway { url -> requested.add(url); Response(url, good) }.download(info, file) {}
+            assertEquals(listOf(mirror), requested)
+            assertTrue(UpdateSpec.trustedNetworkUrl("https://foruda.gitee.com/attach_file/a/app.apk?token=abc"))
         } finally { file.delete() }
     }
     private class Response(url: String, private val body: ByteArray, private val code: Int = 200, private val location: String? = null) : HttpURLConnection(URL(url)) {

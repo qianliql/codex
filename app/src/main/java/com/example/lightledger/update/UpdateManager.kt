@@ -70,7 +70,10 @@ object UpdateManager {
                 check(temp.renameTo(target))
                 mutableState.value = UpdateState.Ready(info, target)
             } catch (cancel: CancellationException) { throw cancel }
-            catch (_: Exception) { mutableState.value = UpdateState.Failed("下载或安装包验证失败，请重新下载", info) }
+            catch (error: Exception) {
+                android.util.Log.w("LightLedgerUpdate", "Download or verification failed", error)
+                mutableState.value = UpdateState.Failed("下载或安装包验证失败，请重新下载", info)
+            }
             finally { partial?.delete() }
         }
     }

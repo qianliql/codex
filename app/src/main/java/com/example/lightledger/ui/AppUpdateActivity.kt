@@ -79,7 +79,10 @@ class AppUpdateActivity : LedgerActivity() {
         binding.installUpdate.visibility = if (value is UpdateState.Ready) View.VISIBLE else View.GONE
         binding.downloadProgress.visibility = if (value is UpdateState.Downloading) View.VISIBLE else View.GONE
         if (value is UpdateState.Downloading) binding.downloadProgress.progress = (value.bytes * 100 / value.info.size).toInt()
-        binding.downloadSize.text = info?.let { String.format(Locale.CHINA, "安装包 %.1f MB", it.size / 1024.0 / 1024) }.orEmpty()
+        binding.downloadSize.text = info?.let {
+            String.format(Locale.CHINA, "安装包 %.1f MB", it.size / 1024.0 / 1024) +
+                if (it.mirrorUrl != null) " · 优先 Gitee，备用 GitHub" else " · GitHub"
+        }.orEmpty()
         binding.downloadSize.visibility = if (info == null) View.GONE else View.VISIBLE
     }
     private fun installReady() {

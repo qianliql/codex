@@ -15,7 +15,8 @@ data class InstalledVersion(val name: String, val code: Long) {
 }
 
 data class UpdateInfo(val name: String, val code: Long, val minSdk: Int, val apkUrl: String,
-    val sha256: String, val size: Long, val notes: String, val pageUrl: String)
+    val sha256: String, val size: Long, val notes: String, val pageUrl: String,
+    val mirrorUrl: String? = null)
 
 object UpdateSpec {
     const val API_URL = "https://api.github.com/repos/qianliql/codex/releases/latest"
@@ -64,12 +65,14 @@ object UpdateSpec {
         val page = "https://github.com/qianliql/codex/releases/tag/v$name"
         require(release.getString("html_url") == page)
         val notes = manifest.getString("notes").also { require(it.length in 1..8000) }
-        return UpdateInfo(name, code, minSdk, apkUrl, digest, size, notes, page)
+        val mirror = if (compareVersions(name, "0.11.1") >= 0)
+            "https://gitee.com/qianlihuo/money/releases/download/v$name/$file" else null
+        return UpdateInfo(name, code, minSdk, apkUrl, digest, size, notes, page, mirror)
     }
     fun trustedNetworkUrl(value: String): Boolean = runCatching {
         val uri = URI(value)
         uri.scheme == "https" && uri.userInfo == null && uri.fragment == null &&
             (uri.port == -1 || uri.port == 443) && uri.host in setOf("api.github.com", "github.com",
-                "release-assets.githubusercontent.com", "objects.githubusercontent.com")
+                "release-assets.githubusercontent.com", "objects.githubusercontent.com", "gitee.com", "foruda.gitee.com")
     }.getOrDefault(false)
 }
