@@ -13,11 +13,18 @@ android {
         applicationId = "com.example.lightledger"
         minSdk = 26
         targetSdk = 35
-        versionCode = 25
-        versionName = "0.11.2"
+        versionCode = 26
+        versionName = "1.0.0"
     }
     buildTypes {
-        release { isMinifyEnabled = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") }
+        release {
+            // Keep 32 and 64 bit ARM phones; omit emulator-only x86 binaries from downloads.
+            ndk { abiFilters += setOf("armeabi-v7a", "arm64-v8a") }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -29,6 +36,7 @@ android {
         unitTests.all {
             it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
             it.systemProperty("lightledger.preview.dir", rootProject.file("../outputs").absolutePath)
+            System.getenv("LIGHTLEDGER_ROBOLECTRIC_HOME")?.let { home -> it.systemProperty("user.home", home) }
         }
     }
 }

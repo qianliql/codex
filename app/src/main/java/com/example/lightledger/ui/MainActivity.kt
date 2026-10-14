@@ -12,6 +12,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
+import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
 import com.example.lightledger.databinding.ActivityMainBinding
 import com.example.lightledger.notification.NotificationAccess
@@ -66,6 +67,9 @@ class MainActivity : LedgerActivity() {
         }
         binding.bottomNavigation.setOnItemReselectedListener { returnToRoot() }
         if (savedInstanceState == null) showRoot(R.id.nav_home)
+        // Existing installs could have eight common categories. Keep their bills and IDs;
+        // move only overflow categories into the always-visible occasional group.
+        lifecycleScope.launch { (application as LedgerApp).repository.enforceCommonCategoryLimit() }
         lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.RESUMED) {
             UpdateManager.state.collect { maybePromptUpdate(it) }
         } }

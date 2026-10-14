@@ -1,6 +1,7 @@
 package com.example.lightledger.data
 
 class LedgerRepository(private val dao: LedgerDao) {
+    suspend fun enforceCommonCategoryLimit() = dao.enforceCommonCategoryLimit()
     val statistics = com.example.lightledger.statistics.StatisticsRepository(dao)
     private val duplicateDetector = com.example.lightledger.duplicate.DuplicateDetector(dao)
     val categories = dao.categories()
@@ -14,6 +15,8 @@ class LedgerRepository(private val dao: LedgerDao) {
     suspend fun transaction(id: Long) = dao.transaction(id)
     suspend fun expenseRank(start: Long, end: Long, categoryId: Long, limit: Int, offset: Int) = dao.expenseRank(start, end, categoryId, limit, offset)
     fun expenseRankSummary(start: Long, end: Long, categoryId: Long) = dao.expenseRankSummary(start, end, categoryId)
+    suspend fun incomeRank(start: Long, end: Long, categoryId: Long, limit: Int, offset: Int) = dao.incomeRank(start, end, categoryId, limit, offset)
+    fun incomeRankSummary(start: Long, end: Long, categoryId: Long) = dao.incomeRankSummary(start, end, categoryId)
     suspend fun searchTransactions(search: String, start: Long, end: Long, categoryId: Long,
         tagId: Long, method: String, source: String, type: String, pendingOnly: Boolean,
         limit: Int, offset: Int, amountPendingOnly: Boolean = false) = dao.searchTransactions(search, start, end, categoryId, tagId,
@@ -50,14 +53,17 @@ class LedgerRepository(private val dao: LedgerDao) {
             updatedAt = System.currentTimeMillis(),
         ))
     }
-    suspend fun saveNotification(transaction: LedgerTransaction): Long? {
+    suspend fun saveNotification(transaction: LedgerTransaction): Long? = saveNotificationRecord(transaction)?.id
+
+    /** Return the inserted row without a second SQLite read on the notification hot path. */
+    suspend fun saveNotificationRecord(transaction: LedgerTransaction): LedgerTransaction? {
         val classified = classifyByMerchant(transaction.copy(amountConfirmed = false))
         val linked = if (classified.type == TransactionType.REFUND) {
             val candidate = com.example.lightledger.refund.RefundMatcher.confidentMatch(classified, refundCandidates(classified))
             if (candidate != null) classified.copy(refundOfTransactionId = candidate.id, classificationStatus = ClassificationStatus.UNCLASSIFIED)
             else classified.copy(classificationStatus = ClassificationStatus.NEED_CONFIRM)
         } else classified
-        return dao.insertNotification(linked).takeIf { it > 0 }
+        return dao.insertNotification(linked).takeIf { it > 0 }?.let { linked.copy(id = it) }
     }
     suspend fun classifyExpense(transactionId: Long, categoryId: Long): Boolean =
         dao.classifyExpense(transactionId, categoryId, System.currentTimeMillis()) == 1

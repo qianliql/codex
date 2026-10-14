@@ -16,6 +16,9 @@
         </LinearLayout>
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="总收入" />
+                <TextView android:id="@+id/income" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="¥0.00" android:textColor="?attr/colorPrimary" android:textSize="30sp" app:autoSizeTextType="uniform" app:autoSizeMinTextSize="20sp" app:autoSizeMaxTextSize="30sp" android:maxLines="1" android:textStyle="bold" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="16dp" android:background="?attr/ledgerBorder" />
                 <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="实际支出" />
                 <TextView android:id="@+id/netExpense" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="¥0.00" android:textColor="?attr/colorOnSurface" android:textSize="36sp" app:autoSizeTextType="uniform" app:autoSizeMinTextSize="22sp" app:autoSizeMaxTextSize="36sp" android:maxLines="1" android:textStyle="bold" />
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="16dp" android:background="?attr/ledgerBorder" />
@@ -36,6 +39,14 @@
         <TextView android:id="@+id/trendLabel" style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="每日实际支出" />
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
             <com.example.lightledger.ui.SpendingBarChartView android:id="@+id/spendingChart" android:layout_width="match_parent" android:layout_height="190dp" android:layout_margin="12dp" />
+        </com.google.android.material.card.MaterialCardView>
+        <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="分类收入" />
+        <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <com.example.lightledger.ui.CategoryDonutView android:id="@+id/incomeDonut" android:layout_width="match_parent" android:layout_height="250dp" />
+                <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="点击圆环或分类查看收入明细" />
+                <LinearLayout android:id="@+id/incomeLegend" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="vertical" />
+            </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="10dp" android:text="分类支出" />
         <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content">

@@ -43,6 +43,11 @@ class StatisticsFragment : Fragment() {
                 b.categoryLegend.removeAllViews()
                 b.categoryDonut.onSliceClick = null
             }
+            if (model.incomeCategories.value?.first != period) {
+                b.incomeDonut.setData(CategoryBreakdown(0, emptyList()), income = true)
+                b.incomeLegend.removeAllViews()
+                b.incomeDonut.onSliceClick = null
+            }
             b.periodLabel.text = "${period.label()} ▾"
             stylePeriodButton(b.monthMode, period.month != null)
             stylePeriodButton(b.yearMode, period.month == null)
@@ -53,7 +58,7 @@ class StatisticsFragment : Fragment() {
             if (cached?.first == period) updateTotals(cached.second)
             else {
                 b.netExpense.text = "…"
-                b.expense.text = "…"; b.refund.text = "…"; b.average.text = "…"
+                b.income.text = "…"; b.expense.text = "…"; b.refund.text = "…"; b.average.text = "…"
                 b.averageLabel.text = "月均实际支出 · 按有收支记录的月份"
             }
             b.periodLabel.contentDescription = "${period.label()}，点击选择${if (period.month == null) "年份" else "年份和月份"}"
@@ -62,7 +67,10 @@ class StatisticsFragment : Fragment() {
             if (model.period.value == period) updateTotals(totals)
         }
         model.expenseCategories.observe(viewLifecycleOwner) { (period, totals) ->
-            if (model.period.value == period) showCategories(period, totals)
+            if (model.period.value == period) showCategories(period, totals, income = false)
+        }
+        model.incomeCategories.observe(viewLifecycleOwner) { (period, totals) ->
+            if (model.period.value == period) showCategories(period, totals, income = true)
         }
         model.payments.observe(viewLifecycleOwner) { totals ->
             CategoryRows.show(b.paymentContainer, totals.map { UiFormat.method(it.paymentMethod) to it.amountCents }, "本期暂无支出", progress = true)
@@ -70,26 +78,28 @@ class StatisticsFragment : Fragment() {
         model.trend.observe(viewLifecycleOwner) { b.spendingChart.setData(model.period.value ?: return@observe, it) }
     }
 
-    private fun showCategories(period: StatisticsPeriod, totals: List<ExpenseCategoryTotal>) {
+    private fun showCategories(period: StatisticsPeriod, totals: List<ExpenseCategoryTotal>, income: Boolean) {
         val b = binding ?: return
         val data = CategoryBreakdown.from(totals)
-        b.categoryDonut.setData(data)
-        b.categoryDonut.onSliceClick = { openSlice(period, it) }
-        b.categoryLegend.removeAllViews()
+        val donut = if (income) b.incomeDonut else b.categoryDonut
+        val legend = if (income) b.incomeLegend else b.categoryLegend
+        donut.setData(data, income)
+        donut.onSliceClick = { openSlice(period, it, income) }
+        legend.removeAllViews()
         data.slices.forEachIndexed { index, slice ->
-            val row = RowExpenseSliceBinding.inflate(layoutInflater, b.categoryLegend, false)
-            row.sliceColor.background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(b.categoryDonut.colorFor(index)) }
+            val row = RowExpenseSliceBinding.inflate(layoutInflater, legend, false)
+            row.sliceColor.background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(donut.colorFor(index)) }
             row.sliceName.text = slice.label
             row.sliceShare.text = String.format(java.util.Locale.CHINA, "%.2f%%", slice.amountCents.toDouble() / data.totalCents * 100) + if (slice.merged) " · ${slice.categories.size}个分类" else ""
             row.sliceAmount.text = UiFormat.money(slice.amountCents)
-            row.root.contentDescription = "${slice.label}，${row.sliceShare.text}，${row.sliceAmount.text}，点击查看消费明细"
-            row.root.setOnClickListener { openSlice(period, slice) }
-            b.categoryLegend.addView(row.root)
+            row.root.contentDescription = "${slice.label}，${row.sliceShare.text}，${row.sliceAmount.text}，点击查看${if (income) "收入" else "消费"}明细"
+            row.root.setOnClickListener { openSlice(period, slice, income) }
+            legend.addView(row.root)
         }
     }
 
-    private fun openSlice(period: StatisticsPeriod, slice: ExpenseSlice) {
-        if (!slice.merged) { ExpenseRankActivity.open(requireContext(), period, slice.categories.single()); return }
+    private fun openSlice(period: StatisticsPeriod, slice: ExpenseSlice, income: Boolean) {
+        if (!slice.merged) { ExpenseRankActivity.open(requireContext(), period, slice.categories.single(), income); return }
         val list = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL; val inset = (20 * resources.displayMetrics.density).toInt(); setPadding(inset, 0, inset, 0) }
         val scroll = ScrollView(requireContext()).apply { addView(list) }
         val dialog = MaterialAlertDialogBuilder(requireContext()).setTitle("其他项目 · ${slice.categories.size}类")
@@ -102,8 +112,8 @@ class StatisticsFragment : Fragment() {
             row.root.minimumHeight = (64 * resources.displayMetrics.density).toInt()
             row.root.isClickable = true; row.root.isFocusable = true
             row.root.setBackgroundResource(android.util.TypedValue().also { requireContext().theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true) }.resourceId)
-            row.root.contentDescription = "${item.label}，${UiFormat.money(item.amountCents)}，查看消费排行"
-            row.root.setOnClickListener { dialog.dismiss(); ExpenseRankActivity.open(requireContext(), period, item) }
+            row.root.contentDescription = "${item.label}，${UiFormat.money(item.amountCents)}，查看${if (income) "收入" else "消费"}排行"
+            row.root.setOnClickListener { dialog.dismiss(); ExpenseRankActivity.open(requireContext(), period, item, income) }
             list.addView(row.root)
         }
         dialog.show()
@@ -111,6 +121,7 @@ class StatisticsFragment : Fragment() {
 
     private fun updateTotals(totals: MonthTotals) {
         val b = binding ?: return
+        b.income.text = UiFormat.money(totals.income)
         b.expense.text = UiFormat.money(totals.expense)
         b.refund.text = UiFormat.money(totals.refund)
         b.netExpense.text = UiFormat.money(totals.expense - totals.refund)

@@ -8,6 +8,7 @@ import com.example.lightledger.notification.ProcessExitDiagnostics
 import com.example.lightledger.notification.ListenerRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 
 class LedgerApp : Application() {
@@ -26,6 +27,9 @@ class LedgerApp : Application() {
         ListenerRecovery.initialize(this)
     }
     // A listener rebind must not cancel a notification already queued for saving.
-    val notificationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // A notification may be replayed after reconnect. Keep parsing and database writes in
+    // arrival order without tying up the listener callback or opening parallel SQLite work.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val notificationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
     val repository by lazy { LedgerRepository(LedgerDatabase.get(this).dao()) }
 }

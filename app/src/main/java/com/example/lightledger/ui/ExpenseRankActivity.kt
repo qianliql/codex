@@ -21,9 +21,10 @@ import kotlinx.coroutines.launch
 
 class ExpenseRankActivity : LedgerActivity() {
     companion object {
-        fun open(context: Context, period: StatisticsPeriod, category: ExpenseCategoryTotal) {
+        fun open(context: Context, period: StatisticsPeriod, category: ExpenseCategoryTotal, income: Boolean = false) {
             context.startActivity(Intent(context, ExpenseRankActivity::class.java).putExtra("year", period.year)
-                .putExtra("month", period.month ?: 0).putExtra("category_id", category.categoryId).putExtra("category_label", category.label))
+                .putExtra("month", period.month ?: 0).putExtra("category_id", category.categoryId).putExtra("category_label", category.label)
+                .putExtra("income", income))
         }
     }
     private lateinit var binding: ActivityExpenseRankBinding
@@ -35,17 +36,19 @@ class ExpenseRankActivity : LedgerActivity() {
     private var loading = false
     private var exhausted = false
     private var start = 0L; private var end = 0L; private var categoryId = 0L
+    private var income = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val year = intent.getIntExtra("year", 0); val month = intent.getIntExtra("month", 0).takeIf { it != 0 }
         categoryId = intent.getLongExtra("category_id", -1)
+        income = intent.getBooleanExtra("income", false)
         if (year !in 1970..9999 || (month != null && month !in 1..12) || categoryId < 0) { finish(); return }
         val period = StatisticsPeriod(year, month)
         val bounds = period.bounds(); start = bounds.first; end = bounds.second
         binding = ActivityExpenseRankBinding.inflate(layoutInflater); setContentView(binding.root); SystemBarInsets.apply(binding.root)
         binding.goBack.setOnClickListener { finish() }
-        binding.rankTitle.text = "${intent.getStringExtra("category_label").orEmpty()} · 消费排行"
-        binding.rankPeriod.text = "${period.label()} · 按单笔支出从高到低 · 未扣退款"
+        binding.rankTitle.text = "${intent.getStringExtra("category_label").orEmpty()} · ${if (income) "收入" else "消费"}排行"
+        binding.rankPeriod.text = "${period.label()} · 按单笔${if (income) "收入" else "支出"}从高到低" + if (income) "" else " · 未扣退款"
         adapter = ExpenseRankAdapter { id -> startActivity(Intent(this, TransactionEditorActivity::class.java).putExtra("id", id)) }
         val layout = LinearLayoutManager(this)
         binding.rankList.layoutManager = layout; binding.rankList.adapter = adapter
@@ -55,7 +58,8 @@ class ExpenseRankActivity : LedgerActivity() {
             }
         })
         binding.rankRetry.setOnClickListener { load(rows.isEmpty()) }
-        repository.expenseRankSummary(start, end, categoryId).observe(this) { binding.rankSummary.text = "${UiFormat.money(it.amountCents)} · ${it.billCount}笔" }
+        (if (income) repository.incomeRankSummary(start, end, categoryId) else repository.expenseRankSummary(start, end, categoryId))
+            .observe(this) { binding.rankSummary.text = "${UiFormat.money(it.amountCents)} · ${it.billCount}笔" }
         repository.transactionChangeSignal.observe(this) { load(true) }
     }
     private fun load(reset: Boolean) {
@@ -65,11 +69,12 @@ class ExpenseRankActivity : LedgerActivity() {
         loading = true; binding.rankLoading.visibility = View.VISIBLE; binding.rankRetry.visibility = View.GONE; binding.rankEmpty.visibility = View.GONE
         job = lifecycleScope.launch {
             try {
-                val page = repository.expenseRank(start, end, categoryId, 80, offset)
+                val page = if (income) repository.incomeRank(start, end, categoryId, 80, offset)
+                    else repository.expenseRank(start, end, categoryId, 80, offset)
                 if (current != generation) return@launch
                 rows.addAll(page); exhausted = page.size < 80
                 adapter.submitList(rows.toList())
-                binding.rankEmpty.text = "本期暂无支出"
+                binding.rankEmpty.text = "本期暂无${if (income) "收入" else "支出"}"
                 binding.rankEmpty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {

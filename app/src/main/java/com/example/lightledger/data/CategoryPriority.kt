@@ -5,7 +5,7 @@ object CategoryPriority {
     const val COMMON = 1
     const val OCCASIONAL = 2
     const val NOTIFICATION_LIMIT = 3
-    const val COMMON_LIMIT = 8
+    const val COMMON_LIMIT = 5
     val notificationDefaults = listOf("正餐", "零食", "日用")
     fun defaultFor(name: String) = when (name) {
         in notificationDefaults -> NOTIFICATION

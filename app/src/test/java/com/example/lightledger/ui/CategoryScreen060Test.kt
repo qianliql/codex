@@ -35,14 +35,12 @@ class CategoryScreen060Test {
         LedgerDatabase::class.java.getDeclaredField("instance").apply { isAccessible = true; set(null, null) }
         val db = LedgerDatabase.get(RuntimeEnvironment.getApplication())
         val travelId = runBlocking { db.dao().insertCategory(Category(name = "旅行", priority = 2, iconKey = "travel")) }
+        runBlocking { db.dao().categoryList().single { it.name == "娱乐" }.let { db.dao().updateCategory(it.copy(priority = 2)) } }
         val controller = Robolectric.buildActivity(CategoryActivity::class.java).setup()
         try {
             val activity = controller.get()
             val container = activity.findViewById<ViewGroup>(R.id.categoryContainer)
             await { container.childCount > 5 }
-            assertFalse(texts(container).any { it.text.toString() == "旅行" })
-            val folded = texts(container).single { it.text.toString().contains("不常用") }
-            folded.performClick()
             assertTrue(texts(container).any { it.text.toString() == "旅行" })
             texts(container).single { it.text.toString() == "旅行" }.let { name -> (name.parent.parent.parent as View).performClick() }
             val dialog = ShadowDialog.getLatestDialog() as AlertDialog
@@ -57,7 +55,7 @@ class CategoryScreen060Test {
             await { !dialog.isShowing }
             val selected = runBlocking { db.dao().categoryList() }.single { it.id == travelId }
             assertEquals(1, selected.priority); assertEquals("car", selected.iconKey)
-            await { texts(container).any { it.text.toString() == "常用 · 6/8" } }
+            await { texts(container).any { it.text.toString() == "常用 · 5/5" } }
             val root = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
             measure(root); save(root, "categories-real")
             runBlocking { db.dao().saveCategoryPreferences(selected.copy(priority = 2)) }

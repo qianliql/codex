@@ -114,6 +114,24 @@ class Features0100Test {
         } finally { controller.destroy() }
     }
 
+    @Test fun alipaySinglePaymentSummaryCanSaveButMultiMessageSummaryCannot() {
+        val controller = Robolectric.buildService(PaymentNotificationService::class.java).create()
+        val service = controller.get()
+        try {
+            fun send(id: Int, text: String) {
+                val notification = Notification.Builder(app, "synthetic")
+                    .setContentTitle("支付宝").setContentText(text).build()
+                notification.flags = notification.flags or Notification.FLAG_GROUP_SUMMARY
+                val key = shadowOf(service).addActiveNotification("com.eg.android.AlipayGphone", id, notification)
+                service.onNotificationPosted(service.activeNotifications.single { it.key == key })
+                drainWrites()
+            }
+            send(200, "付款成功，支付金额￥5.67")
+            send(201, "[2条] 支付宝：付款成功，支付金额￥6.78")
+            assertEquals(listOf(567L), runBlocking { app.repository.snapshot().transactions.map { it.amountCents } })
+        } finally { controller.destroy() }
+    }
+
     @Test fun newManualBillPrefillsLatestButManualChoiceStillSaves() {
         DetectedPaymentMethod.remember(app, PaymentMethod.ALIPAY, 2_000)
         val controller = Robolectric.buildActivity(TransactionEditorActivity::class.java).setup()
@@ -124,6 +142,8 @@ class Features0100Test {
             chips.children().single { it.text == "现金" }.performClick()
             DetectedPaymentMethod.remember(app, PaymentMethod.WECHAT, 3_000)
             assertEquals("现金", checkedMethod(activity))
+            activity.findViewById<EditText>(R.id.amount).setText(".5")
+            assertEquals("0.5", activity.findViewById<EditText>(R.id.amount).text.toString())
             activity.findViewById<EditText>(R.id.amount).setText("18.20")
             activity.findViewById<View>(R.id.save).performClick(); await { activity.isFinishing }
             val bill = runBlocking { app.repository.snapshot().transactions.single() }

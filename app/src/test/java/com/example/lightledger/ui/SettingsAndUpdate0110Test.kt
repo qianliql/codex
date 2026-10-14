@@ -78,7 +78,7 @@ class SettingsAndUpdate0110Test {
     @Test fun downloadShowsNotesVerifiesPackageAndRequestsSystemPermission() {
         val content = byteArrayOf(1, 2, 3)
         val scratch = File(app.cacheDir, "hash-sample").apply { writeBytes(content) }
-        val info = UpdateInfo("0.12.0", 26, 26, "https://github.com/qianliql/codex/releases/download/v0.12.0/LightLedger-0.12.0-debug.apk",
+        val info = UpdateInfo("1.1.0", 27, 26, "https://github.com/qianliql/codex/releases/download/v1.1.0/LightLedger-1.1.0-debug.apk",
             UpdateApkVerifier.sha256(scratch), 3, "设置更简洁\n应用内下载更新", UpdateSpec.RELEASE_PAGE)
         scratch.delete()
         val pm = shadowOf(app.packageManager)
@@ -87,7 +87,7 @@ class SettingsAndUpdate0110Test {
         own.signingInfo = SigningInfo().also { shadowOf(it).setSignatures(arrayOf(Signature("aabb"))) }
         pm.installPackage(own)
         val archive = PackageInfo().apply {
-            packageName = app.packageName; versionName = info.name; versionCode = 26
+            packageName = app.packageName; versionName = info.name; versionCode = 27
             applicationInfo = ApplicationInfo().apply { minSdkVersion = 26 }
             signingInfo = SigningInfo().also { shadowOf(it).setSignatures(arrayOf(Signature("aabb"))) }
         }
@@ -134,7 +134,7 @@ class SettingsAndUpdate0110Test {
     }
     @Test fun newVersionPromptDoesNotDependOnNotificationPermission() {
         Settings.Secure.putString(app.contentResolver, "enabled_notification_listeners", "")
-        val future = UpdateInfo("0.12.0", 26, 26, "https://github.com/qianliql/codex/releases/download/v0.12.0/LightLedger-0.12.0-debug.apk",
+        val future = UpdateInfo("1.1.0", 27, 26, "https://github.com/qianliql/codex/releases/download/v1.1.0/LightLedger-1.1.0-debug.apk",
             "a".repeat(64), 3, "更新说明", UpdateSpec.RELEASE_PAGE)
         UpdateManager.gateway = object : UpdateGateway {
             override fun check(current: InstalledVersion) = future
@@ -142,10 +142,10 @@ class SettingsAndUpdate0110Test {
         }
         val main = Robolectric.buildActivity(MainActivity::class.java).setup()
         try {
-            try { await { app.getSharedPreferences("app_updates", 0).getLong("last_prompted", 0) == 26L } }
+            try { await { app.getSharedPreferences("app_updates", 0).getLong("last_prompted", 0) == 27L } }
             catch (error: AssertionError) { throw AssertionError("State=${UpdateManager.state.value}, prefs=${app.getSharedPreferences("app_updates", 0).all}", error) }
-            assertEquals(26L, app.getSharedPreferences("app_updates", 0).getLong("last_prompted", 0))
-            assertFalse(File(app.cacheDir, "updates/lightledger-26.apk").exists())
+            assertEquals(27L, app.getSharedPreferences("app_updates", 0).getLong("last_prompted", 0))
+            assertFalse(File(app.cacheDir, "updates/lightledger-27.apk").exists())
         } finally { main.pause().stop().destroy() }
     }
     private fun await(done: () -> Boolean) {

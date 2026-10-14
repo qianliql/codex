@@ -41,6 +41,16 @@ interface LedgerDao {
 
     @Insert suspend fun insertCategory(category: Category): Long
     @Update suspend fun updateCategory(category: Category)
+    @Transaction suspend fun enforceCommonCategoryLimit() {
+        val existing = CategoryPriority.ordered(categoryList())
+        val common = existing.filter { it.scope != CategoryScope.INCOME && it.name != CategoryCatalog.unclassified && it.priority == CategoryPriority.COMMON }
+        val overflow = common.drop(CategoryPriority.COMMON_LIMIT)
+        val firstOrder = (existing.filter { it.scope != CategoryScope.INCOME && it.priority == CategoryPriority.OCCASIONAL }
+            .maxOfOrNull { it.sortOrder } ?: -1) + 1
+        overflow.forEachIndexed { index, category ->
+            updateCategory(category.copy(priority = CategoryPriority.OCCASIONAL, sortOrder = firstOrder + index))
+        }
+    }
     @Transaction suspend fun saveCategoryPreferences(category: Category) {
         require(category.name.isNotBlank() && category.name != "家居") { "请使用其他分类名称" }
         require(category.priority in 0..2) { "分类优先级无效" }
@@ -206,7 +216,7 @@ interface LedgerDao {
         return targets.chunked(400).sumOf { deleteTransactionsByIds(it) }
     }
 
-    @Query("SELECT COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amountCents ELSE 0 END),0) AS expense, COALESCE(SUM(CASE WHEN type = 'REFUND' THEN amountCents ELSE 0 END),0) AS refund, COUNT(DISTINCT CASE WHEN type IN ('EXPENSE','INCOME') THEN strftime('%Y-%m', timestamp / 1000, 'unixepoch', 'localtime') END) AS recordedMonths FROM transactions WHERE timestamp >= :start AND timestamp < :end")
+    @Query("SELECT COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amountCents ELSE 0 END),0) AS expense, COALESCE(SUM(CASE WHEN type = 'REFUND' THEN amountCents ELSE 0 END),0) AS refund, COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amountCents ELSE 0 END),0) AS income, COUNT(DISTINCT CASE WHEN type IN ('EXPENSE','INCOME') THEN strftime('%Y-%m', timestamp / 1000, 'unixepoch', 'localtime') END) AS recordedMonths FROM transactions WHERE timestamp >= :start AND timestamp < :end")
     fun totals(start: Long, end: Long): LiveData<MonthTotals>
 
     @Query("SELECT COALESCE(c.name, '未分类') AS label, c.iconKey AS iconKey, SUM(t.amountCents) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' GROUP BY t.categoryId ORDER BY amountCents DESC")
@@ -214,12 +224,18 @@ interface LedgerDao {
 
     @Query("SELECT CASE WHEN c.id IS NULL OR c.name = '未分类' THEN 0 ELSE c.id END AS categoryId, COALESCE(c.name, '未分类') AS label, c.iconKey AS iconKey, SUM(t.amountCents) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' AND t.amountCents > 0 GROUP BY CASE WHEN c.id IS NULL OR c.name = '未分类' THEN 0 ELSE c.id END ORDER BY amountCents DESC, categoryId")
     fun expenseCategories(start: Long, end: Long): LiveData<List<ExpenseCategoryTotal>>
+    @Query("SELECT CASE WHEN c.id IS NULL OR c.name = '未分类' THEN 0 ELSE c.id END AS categoryId, COALESCE(c.name, '未分类') AS label, c.iconKey AS iconKey, SUM(t.amountCents) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'INCOME' AND t.amountCents > 0 GROUP BY CASE WHEN c.id IS NULL OR c.name = '未分类' THEN 0 ELSE c.id END ORDER BY amountCents DESC, categoryId")
+    fun incomeCategories(start: Long, end: Long): LiveData<List<ExpenseCategoryTotal>>
 
     @Query("SELECT t.*, c.name AS categoryName, c.iconKey AS categoryIconKey FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' AND t.amountCents > 0 AND ((:categoryId = 0 AND (c.id IS NULL OR c.name = '未分类')) OR (:categoryId > 0 AND t.categoryId = :categoryId)) ORDER BY t.amountCents DESC, t.timestamp DESC, t.id DESC LIMIT :limit OFFSET :offset")
     suspend fun expenseRank(start: Long, end: Long, categoryId: Long, limit: Int, offset: Int): List<TransactionRow>
 
     @Query("SELECT COUNT(*) AS billCount, COALESCE(SUM(t.amountCents),0) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'EXPENSE' AND t.amountCents > 0 AND ((:categoryId = 0 AND (c.id IS NULL OR c.name = '未分类')) OR (:categoryId > 0 AND t.categoryId = :categoryId))")
     fun expenseRankSummary(start: Long, end: Long, categoryId: Long): LiveData<ExpenseRankSummary>
+    @Query("SELECT t.*, c.name AS categoryName, c.iconKey AS categoryIconKey FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'INCOME' AND t.amountCents > 0 AND ((:categoryId = 0 AND (c.id IS NULL OR c.name = '未分类')) OR (:categoryId > 0 AND t.categoryId = :categoryId)) ORDER BY t.amountCents DESC, t.timestamp DESC, t.id DESC LIMIT :limit OFFSET :offset")
+    suspend fun incomeRank(start: Long, end: Long, categoryId: Long, limit: Int, offset: Int): List<TransactionRow>
+    @Query("SELECT COUNT(*) AS billCount, COALESCE(SUM(t.amountCents),0) AS amountCents FROM transactions t LEFT JOIN categories c ON t.categoryId = c.id WHERE t.timestamp >= :start AND t.timestamp < :end AND t.type = 'INCOME' AND t.amountCents > 0 AND ((:categoryId = 0 AND (c.id IS NULL OR c.name = '未分类')) OR (:categoryId > 0 AND t.categoryId = :categoryId))")
+    fun incomeRankSummary(start: Long, end: Long, categoryId: Long): LiveData<ExpenseRankSummary>
 
     @Query("SELECT paymentMethod, SUM(amountCents) AS amountCents FROM transactions WHERE timestamp >= :start AND timestamp < :end AND type = 'EXPENSE' GROUP BY paymentMethod ORDER BY amountCents DESC")
     fun paymentTotals(start: Long, end: Long): LiveData<List<PaymentTotal>>

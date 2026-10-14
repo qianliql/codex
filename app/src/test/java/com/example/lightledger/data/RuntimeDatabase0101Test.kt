@@ -84,6 +84,31 @@ class RuntimeDatabase0101Test {
         }
     }
 
+    @Test fun notificationInsertReturnsItsFinalClassificationAndRejectsReplay() {
+        val db = newInstance()
+        try {
+            runBlocking {
+                val dao = db.dao()
+                val category = dao.insertCategory(Category(name = "测试分类"))
+                val repo = LedgerRepository(dao)
+                repo.addMerchantRule("虚构商店", category, true)
+                val bill = LedgerTransaction(amountCents = 1234, type = TransactionType.EXPENSE,
+                    timestamp = 1_800_000_000_000, merchant = "虚构商店", paymentMethod = PaymentMethod.WECHAT,
+                    source = TransactionSource.NOTIFICATION, notificationKey = "synthetic:fast-path")
+                val saved = repo.saveNotificationRecord(bill)!!
+                assertTrue(saved.id > 0)
+                assertEquals(category, saved.categoryId)
+                assertEquals(ClassificationStatus.CLASSIFIED, saved.classificationStatus)
+                assertFalse(saved.amountConfirmed)
+                assertEquals(saved, dao.transaction(saved.id))
+                assertNull(repo.saveNotificationRecord(bill))
+            }
+        } finally {
+            db.close()
+            LedgerDatabase::class.java.getDeclaredField("instance").apply { isAccessible = true; set(null, null) }
+        }
+    }
+
     private fun await(condition: () -> Boolean) {
         repeat(400) {
             shadowOf(Looper.getMainLooper()).idle()

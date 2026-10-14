@@ -162,16 +162,14 @@ class Features060Test {
         } finally { controller.pause().stop().destroy() }
     }
 
-    @Test fun occasionalCategoriesCollapseAndSelectedHistoricalCategoryRemainsVisible() {
+    @Test fun occasionalCategoriesStayVisibleAndSelectedHistoricalCategoryRemainsVisible() {
         val id = runBlocking { db.dao().insertCategory(Category(name = "旅行", priority = 2, iconKey = "travel")) }
         val controller = Robolectric.buildActivity(TransactionEditorActivity::class.java).setup()
         try {
             val activity = controller.get()
-            val group = activity.findViewById<ChipGroup>(R.id.categoryChips)
+            val group = activity.findViewById<ChipGroup>(R.id.occasionalCategoryChips)
             fun travel(): Chip? = (0 until group.childCount).map { group.getChildAt(it) }.filterIsInstance<Chip>().firstOrNull { it.text.toString() == "旅行" }
             await { travel() != null }
-            assertEquals(View.GONE, travel()!!.visibility)
-            activity.findViewById<View>(R.id.expandCategories).performClick()
             assertEquals(View.VISIBLE, travel()!!.visibility)
             travel()!!.performClick()
             assertTrue(travel()!!.isChecked)
@@ -179,7 +177,7 @@ class Features060Test {
         runBlocking { db.dao().insertTransaction(LedgerTransaction(id = 100, amountCents = 1000, type = TransactionType.EXPENSE, timestamp = System.currentTimeMillis(), categoryId = id)) }
         val edit = Robolectric.buildActivity(TransactionEditorActivity::class.java, android.content.Intent(RuntimeEnvironment.getApplication(), TransactionEditorActivity::class.java).putExtra("id", 100L)).setup()
         try {
-            val group = edit.get().findViewById<ChipGroup>(R.id.categoryChips)
+            val group = edit.get().findViewById<ChipGroup>(R.id.occasionalCategoryChips)
             await { (0 until group.childCount).map { group.getChildAt(it) }.filterIsInstance<Chip>().any { it.text.toString() == "旅行" && it.isChecked && it.visibility == View.VISIBLE } }
         } finally { edit.pause().stop().destroy() }
     }

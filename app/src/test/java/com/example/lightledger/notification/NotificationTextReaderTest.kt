@@ -81,11 +81,16 @@ class NotificationTextReaderTest {
 
     @Test fun diagnosticResultsForBothAppsAreRetainedWithoutNotificationText() {
         val context = org.robolectric.RuntimeEnvironment.getApplication()
-        NotificationDiagnostics.record(context, "com.tencent.mm", "已自动记账")
+        NotificationDiagnostics.record(context, "com.tencent.mm", "已自动记账",
+            NotificationDiagnostics.ProcessingTimes(42, 3, 35, 4))
         NotificationDiagnostics.record(context, "com.eg.android.AlipayGphone", "没有可靠金额，已跳过")
         val prefs = context.getSharedPreferences("notification_diagnostics", 0)
         assertEquals("已自动记账", prefs.getString("微信_result", null))
         assertEquals("没有可靠金额，已跳过", prefs.getString("支付宝_result", null))
         assertTrue(prefs.getLong("微信_saved", 0) > 0)
+        assertEquals(42L, prefs.getLong("微信_total_ms", -1))
+        assertEquals(35L, prefs.getLong("微信_save_ms", -1))
+        NotificationDiagnostics.record(context, "com.tencent.mm", "已收到，正在识别")
+        assertEquals(-1L, prefs.getLong("微信_total_ms", -1))
     }
 }

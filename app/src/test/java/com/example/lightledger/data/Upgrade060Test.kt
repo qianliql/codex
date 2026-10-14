@@ -41,7 +41,9 @@ class Upgrade060Test {
             dao.insertTransaction(LedgerTransaction(id = 20, amountCents = 90000, type = TransactionType.EXPENSE, timestamp = date(2025, 12)))
             val (start, end) = StatisticsPeriod(2026, null).bounds()
             val totals = dao.totals(start, end)
-            assertEquals(MonthTotals(18000, 3000, 2), value(totals) { it.recordedMonths == 2 })
+            assertEquals(MonthTotals(18000, 3000, 2, 5000), value(totals) { it.recordedMonths == 2 })
+            assertEquals(5000L, value(dao.incomeCategories(start, end)) { it.isNotEmpty() }.single().amountCents)
+            assertEquals(listOf(5000L), dao.incomeRank(start, end, 0, 10, 0).map { it.transaction.amountCents })
             assertEquals(7500L, value(totals) { it.recordedMonths == 2 }.averageExpense())
             dao.insertTransaction(LedgerTransaction(amountCents = 3000, type = TransactionType.EXPENSE, timestamp = date(2026, 12)))
             assertEquals(6000L, value(totals) { it.recordedMonths == 3 }.averageExpense())
@@ -61,9 +63,16 @@ class Upgrade060Test {
             val group = CategoryPriority.notification(dao.categoryList())
             dao.moveCategory(group.last().id, -1)
             assertEquals(listOf("正餐", "日用", "零食"), CategoryPriority.notification(dao.categoryList()).map { it.name })
-            (1..8).forEach { dao.saveCategoryPreferences(Category(name = "常用$it", priority = 1)) }
-            assertTrue(runCatching { dao.saveCategoryPreferences(Category(name = "第九个", priority = 1)) }.isFailure)
-            assertFalse(dao.categoryList().any { it.name == "第九个" })
+            (1..5).forEach { dao.saveCategoryPreferences(Category(name = "常用$it", priority = 1)) }
+            assertTrue(runCatching { dao.saveCategoryPreferences(Category(name = "第六个", priority = 1)) }.isFailure)
+            assertFalse(dao.categoryList().any { it.name == "第六个" })
+            val oldCommon = (6..8).map { dao.insertCategory(Category(name = "旧常用$it", priority = 1, sortOrder = it)) }
+            dao.insertTransaction(LedgerTransaction(amountCents = 4321, type = TransactionType.EXPENSE,
+                timestamp = date(2026, 9), categoryId = oldCommon.last()))
+            dao.enforceCommonCategoryLimit()
+            assertEquals(5, dao.categoryList().count { it.scope != CategoryScope.INCOME && it.priority == 1 })
+            assertEquals(oldCommon.last(), dao.transaction(1)!!.categoryId)
+            assertEquals(2, dao.categoryList().single { it.id == oldCommon.last() }.priority)
             val category = dao.categoryList().first()
             dao.saveCategoryPreferences(category.copy(priority = 2, iconKey = "car"))
             dao.insertCategory(Category(name = "未分类", priority = 2))
@@ -82,7 +91,7 @@ class Upgrade060Test {
             assertEquals("虚构备注", dao.transaction(1)!!.note)
             assertEquals(1234L, dao.transaction(1)!!.amountCents)
             assertEquals(other.id, dao.merchantRules().single().categoryId)
-            assertTrue(dao.categoryList().count { it.priority == 1 } <= 8)
+            assertTrue(dao.categoryList().count { it.priority == 1 } <= 5)
         } finally { db.close() }
     }
 

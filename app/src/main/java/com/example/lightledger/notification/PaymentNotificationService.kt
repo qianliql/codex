@@ -3,6 +3,7 @@ package com.example.lightledger.notification
 import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.os.SystemClock
 import android.util.Log
 import com.example.lightledger.LedgerApp
 import com.example.lightledger.data.ClassificationStatus
@@ -15,6 +16,7 @@ import java.security.MessageDigest
 
 class PaymentNotificationService : NotificationListenerService() {
     companion object {
+        private val GROUP_COUNT = Regex("\\[?\\d+条\\]?")
         @Volatile var isConnected = false; private set
         @Volatile private var current: PaymentNotificationService? = null
         fun inspectCurrent(): Boolean {
@@ -45,65 +47,111 @@ class PaymentNotificationService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        if (sbn == null || sbn.packageName !in setOf("com.tencent.mm", "com.eg.android.AlipayGphone")) return
+        if (sbn == null) return
+        val sourcePackage = sbn.packageName
+        // Android calls this for every app's notification. Avoid allocating a set on that hot path.
+        if (sourcePackage != "com.tencent.mm" && sourcePackage != "com.eg.android.AlipayGphone") return
         val context = applicationContext
+        val receivedAt = SystemClock.elapsedRealtimeNanos()
         NotificationDiagnostics.record(context, sbn.packageName, "已收到，正在识别")
-        val notification = sbn.notification ?: return
         fun outcome(result: String) {
-            NotificationDiagnostics.record(context, sbn.packageName, result)
+            val elapsed = ((SystemClock.elapsedRealtimeNanos() - receivedAt) / 1_000_000L).coerceAtLeast(0L)
+            NotificationDiagnostics.record(context, sbn.packageName, result,
+                NotificationDiagnostics.ProcessingTimes(elapsed, elapsed, 0, 0))
         }
-        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) {
-            outcome("汇总通知，已跳过")
+        val notification = sbn.notification ?: run {
+            outcome("通知没有可读取的内容")
             return
         }
         val extras = notification.extras ?: run {
             outcome("通知没有可读取的单笔正文")
             return
         }
-        val (title, text) = NotificationTextReader.read(extras)
+        val (title, text) = runCatching { NotificationTextReader.read(extras) }.getOrElse {
+            outcome("通知内容读取失败")
+            Log.w("PaymentNotification", "Could not read notification extras", it)
+            return
+        }
         if (text.isBlank()) {
             outcome("通知没有可读取的文字")
             return
         }
-        val parsed = NotificationParserRegistry.parse(sbn.packageName, title, text) ?: run {
-            outcome(PaymentTextParser.rejectionReason(title, text))
-            return
+        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) {
+            if (sourcePackage != "com.eg.android.AlipayGphone") {
+                outcome("汇总通知，已跳过")
+                return
+            }
+            val multiple = (extras.getParcelableArray(Notification.EXTRA_MESSAGES)?.size ?: 0) > 1 ||
+                (extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.size ?: 0) > 1 ||
+                GROUP_COUNT.containsMatchIn("$title $text")
+            val childPresent = runCatching { activeNotifications.orEmpty().any {
+                it.packageName == sourcePackage && it.key != sbn.key && it.groupKey == sbn.groupKey &&
+                    it.notification?.flags?.and(Notification.FLAG_GROUP_SUMMARY) == 0
+            } }.getOrDefault(false)
+            if (multiple || childPresent || !PaymentTextParser.hasStrongOutcomeWithAmount("$title\n$text")) {
+                outcome(if (childPresent) "已有单条通知，汇总已跳过" else "汇总通知没有明确的单笔付款，已跳过")
+                return
+            }
         }
-        DetectedPaymentMethod.remember(context, parsed.paymentMethod,
-            sbn.postTime.takeIf { it > 0 } ?: System.currentTimeMillis())
+        // Copy the small immutable inputs before leaving Android's listener callback.
+        val timestamp = sbn.postTime.takeIf { it > 0 } ?: System.currentTimeMillis()
         val keyInput = "${sbn.packageName}|${sbn.key}|${sbn.postTime}"
-        val key = MessageDigest.getInstance("SHA-256").digest(keyInput.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        val status = when {
-            parsed.type == TransactionType.REFUND -> ClassificationStatus.NEED_CONFIRM
-            else -> ClassificationStatus.UNCLASSIFIED
-        }
-        val record = LedgerTransaction(
-            amountCents = parsed.amountCents,
-            type = parsed.type,
-            merchant = parsed.merchant,
-            paymentMethod = parsed.paymentMethod,
-            platform = parsed.platform,
-            timestamp = sbn.postTime.takeIf { it > 0 } ?: System.currentTimeMillis(),
-            source = TransactionSource.NOTIFICATION,
-            classificationStatus = status,
-            notificationKey = key,
-        )
         val app = application as LedgerApp
         app.notificationScope.launch {
+            var parsedAt = receivedAt
+            var savedAt = receivedAt
+            fun elapsedMs(start: Long, end: Long) = ((end - start) / 1_000_000L).coerceAtLeast(0L)
+            fun finish(result: String, promptedAt: Long = SystemClock.elapsedRealtimeNanos()) {
+                NotificationDiagnostics.record(context, sourcePackage, result,
+                    NotificationDiagnostics.ProcessingTimes(
+                        totalMs = elapsedMs(receivedAt, promptedAt),
+                        parseMs = elapsedMs(receivedAt, parsedAt),
+                        saveMs = elapsedMs(parsedAt, savedAt),
+                        promptMs = elapsedMs(savedAt, promptedAt),
+                    ))
+            }
             try {
-                val repository = app.repository
-                val id = repository.saveNotification(record)
-                val saved = id?.let { repository.transaction(it) }
-                outcome(if (saved == null) "重复通知，已跳过" else "已自动记账")
-                if (saved != null && saved.type == TransactionType.EXPENSE && saved.amountCents > 0 &&
-                    saved.classificationStatus != ClassificationStatus.CLASSIFIED) {
-                    QuickClassificationManager.show(app, saved.id, saved.amountCents, repository.categoryList())
+                val parsed = NotificationParserRegistry.parse(sourcePackage, title, text)
+                parsedAt = SystemClock.elapsedRealtimeNanos()
+                if (parsed == null) {
+                    savedAt = parsedAt
+                    finish(PaymentTextParser.rejectionReason(title, text))
+                    return@launch
                 }
+                DetectedPaymentMethod.remember(context, parsed.paymentMethod, timestamp)
+                val key = MessageDigest.getInstance("SHA-256").digest(keyInput.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+                val status = if (parsed.type == TransactionType.REFUND) ClassificationStatus.NEED_CONFIRM
+                    else ClassificationStatus.UNCLASSIFIED
+                val record = LedgerTransaction(
+                    amountCents = parsed.amountCents,
+                    type = parsed.type,
+                    merchant = parsed.merchant,
+                    paymentMethod = parsed.paymentMethod,
+                    platform = parsed.platform,
+                    timestamp = timestamp,
+                    source = TransactionSource.NOTIFICATION,
+                    classificationStatus = status,
+                    notificationKey = key,
+                )
+                val repository = app.repository
+                val saved = repository.saveNotificationRecord(record)
+                savedAt = SystemClock.elapsedRealtimeNanos()
+                if (saved == null) {
+                    finish("重复通知，已跳过")
+                    return@launch
+                }
+                if (saved.type == TransactionType.EXPENSE && saved.amountCents > 0 &&
+                    saved.classificationStatus != ClassificationStatus.CLASSIFIED) {
+                    runCatching { QuickClassificationManager.show(app, saved.id, saved.amountCents, repository.categoryList()) }
+                        .onFailure { Log.w("PaymentNotification", "Could not show quick classification", it) }
+                }
+                finish("已自动记账")
             }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                outcome("保存失败，请重试或手动记录")
+                savedAt = SystemClock.elapsedRealtimeNanos()
+                finish("保存失败，请重试或手动记录")
                 Log.w("PaymentNotification", "Could not save notification", e)
             }
         }

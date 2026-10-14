@@ -28,8 +28,8 @@
         <item name="android:textSize">13sp</item><item name="android:minHeight">90dp</item>
         <item name="android:paddingHorizontal">4dp</item><item name="cornerRadius">14dp</item>
         <item name="android:textColor">@color/ledger_priority_text</item>
-        <item name="backgroundTint">@color/ledger_priority_background</item>
         <item name="iconTint">@color/ledger_priority_text</item>
+        <item name="backgroundTint">@color/ledger_priority_background</item>
         <item name="iconGravity">textTop</item><item name="iconSize">20dp</item><item name="iconPadding">6dp</item>
     </style>
     <style name="LedgerPageTitle"><item name="android:textColor">?attr/colorOnSurface</item><item name="android:textSize">28sp</item><item name="android:fontFamily">sans-serif-medium</item></style>

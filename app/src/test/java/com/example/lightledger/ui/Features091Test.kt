@@ -57,7 +57,7 @@ class Features091Test {
                 assertEquals(listOf("工资", "奖金", "生活费", "其他"), chips(group).map { it.text.toString() })
                 assertEquals(2, chips(group).map { it.top }.distinct().size)
                 assertEquals(1, chips(group).map { it.width }.distinct().size)
-                assertEquals(View.GONE, activity.findViewById<View>(R.id.expandCategories).visibility)
+                assertEquals(View.GONE, activity.findViewById<View>(R.id.occasionalCategoryHeading).visibility)
                 assertFalse(activity.findViewById<View>(R.id.paymentMethodChips).isShown)
                 assertTrue(activity.findViewById<View>(R.id.note).isShown)
                 chips(group).single { it.text == "工资" }.performClick()

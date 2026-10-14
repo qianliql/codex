@@ -10,7 +10,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.core.widget.doAfterTextChanged
-import androidx.core.view.doOnLayout
 import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
 import com.example.lightledger.data.*
@@ -26,7 +25,6 @@ class TransactionEditorActivity : LedgerActivity() {
     private lateinit var binding: ActivityTransactionEditorBinding
     private val repository by lazy { (application as LedgerApp).repository }
     private var categories: List<Category> = emptyList()
-    private var showOccasional = false
     private var existing: LedgerTransaction? = null
     private var tags: List<Tag> = emptyList()
     private val selectedTagIds = mutableSetOf<Long>()
@@ -56,12 +54,18 @@ class TransactionEditorActivity : LedgerActivity() {
         }
         setContentView(binding.root)
         SystemBarInsets.apply(binding.root)
-        EditorChoiceRows.bindCategories(binding.categoryChips, binding.categoryScroll)
+        EditorChoiceRows.bindCategoryGrid(binding.categoryChips)
+        EditorChoiceRows.bindCategoryGrid(binding.occasionalCategoryChips)
         EditorChoiceRows.bindPayments(binding.paymentMethodChips)
-        binding.expandCategories.setOnClickListener { showOccasional = !showOccasional; updateCategoryVisibility() }
         binding.goBack.setOnClickListener { finish() }
         binding.moreDetails.setOnClickListener { showMoreDetails(binding.additionalDetails.visibility != View.VISIBLE) }
-        binding.amount.doAfterTextChanged { binding.amountInput.error = null }
+        binding.amount.doAfterTextChanged { editable ->
+            binding.amountInput.error = null
+            if (editable?.startsWith(".") == true) {
+                binding.amount.setText("0$editable")
+                binding.amount.setSelection(binding.amount.text?.length ?: 0)
+            }
+        }
         binding.typeToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
             typeCategories[selectedType] = selectedCategoryId
@@ -80,7 +84,6 @@ class TransactionEditorActivity : LedgerActivity() {
             }
             selectedCategoryId = if (typeCategories.containsKey(selectedType)) typeCategories[selectedType]
                 else categories.firstOrNull { it.name == "其他" }?.id
-            showOccasional = false
             if (selectedType == TransactionType.INCOME) showMoreDetails(false)
             showCategoryChoices()
         }
@@ -185,31 +188,31 @@ class TransactionEditorActivity : LedgerActivity() {
     private fun showCategoryChoices() {
         val selection = selectedCategoryId
         binding.categoryChips.removeAllViews()
+        binding.occasionalCategoryChips.removeAllViews()
         categoryChips.clear()
         CategoryCatalog.choices(categories, selectedType).forEach(::addCategoryChip)
-        updateCategoryVisibility()
+        val hasOccasional = binding.occasionalCategoryChips.childCount > 0
+        binding.occasionalCategoryHeading.visibility = if (hasOccasional) View.VISIBLE else View.GONE
+        binding.occasionalCategoryChips.visibility = if (hasOccasional) View.VISIBLE else View.GONE
+        EditorChoiceRows.fitCategoryGrid(binding.categoryChips)
+        EditorChoiceRows.fitCategoryGrid(binding.occasionalCategoryChips)
         selectCategory(selection)
     }
 
-    private fun updateCategoryVisibility() {
-        val occasional = if (selectedType == TransactionType.INCOME) emptyList() else
-            CategoryCatalog.choices(categories, selectedType).filter { it.priority == CategoryPriority.OCCASIONAL }
-        occasional.forEach { category -> categoryChips[category.id]?.visibility = if (showOccasional) View.VISIBLE else View.GONE }
-        binding.expandCategories.visibility = if (occasional.isEmpty()) View.GONE else View.VISIBLE
-        binding.expandCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（${occasional.size}）▾"
-        EditorChoiceRows.fitCategories(binding.categoryChips, binding.categoryScroll)
-    }
-
     private fun addCategoryChip(category: Category) {
+        val occasional = selectedType != TransactionType.INCOME && category.priority == CategoryPriority.OCCASIONAL
         val chip = choiceChip(category.name).apply {
             chipIcon = androidx.appcompat.content.res.AppCompatResources.getDrawable(this@TransactionEditorActivity, CategoryIcons.icon(category.name, category.iconKey))
             setOnCheckedChangeListener { _, checked ->
-                if (checked) selectedCategoryId = category.id
+                if (checked) {
+                    selectedCategoryId = category.id
+                    if (occasional) binding.categoryChips.clearCheck() else binding.occasionalCategoryChips.clearCheck()
+                }
                 else if (selectedCategoryId == category.id) selectedCategoryId = null
             }
         }
         categoryChips[category.id] = chip
-        binding.categoryChips.addView(chip)
+        (if (occasional) binding.occasionalCategoryChips else binding.categoryChips).addView(chip)
     }
 
     private fun showPaymentChoices() {
@@ -261,16 +264,20 @@ class TransactionEditorActivity : LedgerActivity() {
     private fun selectCategory(categoryId: Long?) {
         if (categoryId == null) {
             binding.categoryChips.clearCheck()
+            binding.occasionalCategoryChips.clearCheck()
             selectedCategoryId = null
             return
         }
-        if (categoryId !in categoryChips) categories.firstOrNull { it.id == categoryId }?.let(::addCategoryChip)
-        if (selectedType != TransactionType.INCOME && categories.any { it.id == categoryId && it.priority == CategoryPriority.OCCASIONAL }) { showOccasional = true; updateCategoryVisibility() }
-        EditorChoiceRows.fitCategories(binding.categoryChips, binding.categoryScroll)
-        categoryChips[categoryId]?.let { chip ->
-            chip.isChecked = true
-            binding.categoryChips.doOnLayout { binding.categoryScroll.scrollTo((chip.right - binding.categoryScroll.width).coerceAtLeast(0), 0) }
+        if (categoryId !in categoryChips) categories.firstOrNull { it.id == categoryId }?.let {
+            addCategoryChip(it)
+            if (binding.occasionalCategoryChips.childCount > 0) {
+                binding.occasionalCategoryHeading.visibility = View.VISIBLE
+                binding.occasionalCategoryChips.visibility = View.VISIBLE
+            }
+            EditorChoiceRows.fitCategoryGrid(binding.categoryChips)
+            EditorChoiceRows.fitCategoryGrid(binding.occasionalCategoryChips)
         }
+        categoryChips[categoryId]?.isChecked = true
     }
 
     private fun chooseTags() {

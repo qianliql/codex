@@ -100,7 +100,7 @@ data class TransactionRow(
     @ColumnInfo(name = "categoryIconKey") val categoryIconKey: String? = null,
 )
 
-data class MonthTotals(val expense: Long, val refund: Long, val recordedMonths: Int = 0) {
+data class MonthTotals(val expense: Long, val refund: Long, val recordedMonths: Int = 0, val income: Long = 0) {
     fun averageExpense(): Long = if (recordedMonths > 0) (expense - refund) / recordedMonths else 0
 }
 

@@ -91,6 +91,9 @@ class ListenerContinuity093Test {
             assertEquals(listOf(567L, 1234L, 2000L), bills.map { it.amountCents }.sorted())
             assertEquals(2, bills.count { it.type == TransactionType.EXPENSE })
             assertEquals(1, bills.count { it.type == TransactionType.TRANSFER })
+            val timings = app.getSharedPreferences("notification_diagnostics", 0)
+            assertTrue(timings.getLong("微信_total_ms", -1) >= 0)
+            assertTrue(timings.getLong("支付宝_total_ms", -1) >= 0)
             service.onListenerDisconnected(); service.onListenerConnected(); drainWrites()
             assertEquals(3, runBlocking { app.repository.snapshot().transactions.size })
         } finally { protection.destroy(); listener.destroy() }

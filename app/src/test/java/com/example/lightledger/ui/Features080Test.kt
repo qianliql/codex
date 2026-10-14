@@ -71,11 +71,10 @@ class Features080Test {
                 val categories = activity.findViewById<ChipGroup>(R.id.categoryChips)
                 val categoryChips = chips(categories).filter { it.visibility == View.VISIBLE }
                 assertEquals(8, categoryChips.size)
-                assertEquals("categories in two rows", 2, categoryChips.map { it.top }.distinct().size)
-                activity.findViewById<View>(R.id.expandCategories).performClick(); measure(root)
-                assertEquals(11, chips(categories).count { it.visibility == View.VISIBLE })
-                assertEquals("expanded categories in two rows", 2, chips(categories).filter { it.visibility == View.VISIBLE }.map { it.top }.distinct().size)
-                activity.findViewById<View>(R.id.expandCategories).performClick(); measure(root)
+                assertEquals("categories in two columns", 4, categoryChips.map { it.top }.distinct().size)
+                val occasional = activity.findViewById<ChipGroup>(R.id.occasionalCategoryChips)
+                assertEquals(3, chips(occasional).size)
+                assertTrue(chips(occasional).all { it.isShown && it.right <= occasional.width })
                 val payments = activity.findViewById<ChipGroup>(R.id.paymentMethodChips)
                 assertEquals(listOf("微信", "支付宝", "银行卡", "现金"), chips(payments).map { it.text.toString() })
                 assertEquals("payments in one row", 1, chips(payments).map { it.top }.distinct().size)
@@ -138,7 +137,7 @@ class Features080Test {
         } finally { controller.pause().stop().destroy() }
     }
 
-    @Test fun longPressPriorityAndDefaultCategoryDeleteCancelConfirmAndEmptyBackupRestore() {
+    @Test fun categoryEditAndDefaultCategoryDeleteCancelConfirmAndEmptyBackupRestore() {
         val repository = (RuntimeEnvironment.getApplication() as LedgerApp).repository
         val initial = runBlocking { repository.categoryList() }
         val meal = initial.single { it.name == "正餐" }
@@ -149,50 +148,26 @@ class Features080Test {
             db.dao().insertTag(Tag(1, "虚构标签")); db.dao().insertTransactionTags(listOf(TransactionTagCrossRef(1, 1)))
             repository.addMerchantRule("虚构规则", meal.id, true)
         }
-        val controller = DragTestSupport.controller()
+        val controller = Robolectric.buildActivity(CategoryActivity::class.java).setup()
         try {
             val activity = controller.get()
             val root = activity.findViewById<ViewGroup>(R.id.categoryContainer)
             fun row(name: String) = texts(root).single { it.text.toString() == name }.parent.parent.parent as View
             await { texts(root).any { it.text.toString() == "日用" } }
-            fun drag(name: String, priority: Int?) {
-                measure(activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0))
-                assertTrue(row(name).performLongClick())
-                measure(activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0))
-                val category = DragTestSupport.source!!
-                val host = activity.findViewById<View>(R.id.categoryDragHost)
-                assertEquals(View.VISIBLE, host.visibility)
-                host.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_STARTED, category))
-                val ids = listOf(R.id.dropNotificationPriority, R.id.dropCommonPriority, R.id.dropOccasionalPriority)
-                if (priority != null) {
-                    val target = activity.findViewById<View>(ids[priority])
-                    val available = target.isEnabled
-                    assertEquals(available, target.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_STARTED, category)))
-                    val x = target.width / 2f; val y = target.height / 2f
-                    target.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_ENTERED, category, x, y))
-                    target.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_LOCATION, category, x, y))
-                    val accepted = target.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DROP, category, x, y))
-                    assertEquals("drop acceptance", available, accepted)
-                    if (available) await {
-                        val saved = runBlocking { repository.categoryList() }
-                        saved.single { it.name == name }.priority == priority && (0..1).all { group ->
-                            val heading = "${CategoryPriority.label(group)} · ${saved.count { it.priority == group && it.name != CategoryCatalog.unclassified }}/${CategoryPriority.limit(group)}"
-                            texts(root).any { it.text.toString() == heading }
-                        }
-                    }
-                }
-                host.dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_ENDED, category))
-                assertEquals(View.GONE, host.visibility)
-            }
-            drag("日用", 1)
-            assertEquals(1, runBlocking { repository.categoryList().single { it.name == "日用" }.priority })
-            drag("日用", 0)
-            drag("娱乐", 0)
-            assertFalse(activity.findViewById<View>(R.id.dropNotificationPriority).isEnabled)
-            assertEquals(1, runBlocking { repository.categoryList().single { it.name == "娱乐" }.priority })
-            val cancelled = runBlocking { db.dao().snapshot() }
-            drag("娱乐", null)
-            assertEquals(cancelled, runBlocking { db.dao().snapshot() })
+            assertFalse(row("日用").isLongClickable)
+            row("日用").performClick()
+            var editDialog = ShadowDialog.getLatestDialog() as AlertDialog
+            assertEquals("日用", editDialog.findViewById<EditText>(R.id.categoryName)!!.text.toString())
+            editDialog.findViewById<View>(R.id.occasionalPriority)!!.performClick()
+            assertEquals(R.id.occasionalPriority, editDialog.findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.priorityChoices)!!.checkedButtonId)
+            val editSave = editDialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            assertTrue(editSave.isEnabled)
+            assertTrue(editSave.performClick())
+            await { runBlocking { repository.categoryList().single { it.name == "日用" }.priority == CategoryPriority.OCCASIONAL } ||
+                editDialog.findViewById<View>(R.id.categoryError)!!.visibility == View.VISIBLE }
+            assertEquals(editDialog.findViewById<TextView>(R.id.categoryError)!!.text.toString(),
+                CategoryPriority.OCCASIONAL, runBlocking { repository.categoryList().single { it.name == "日用" }.priority })
+            assertTrue(texts(root).any { it.text.toString() == "日用" })
             fun requestDelete(): AlertDialog {
                 row("正餐").findViewById<View>(R.id.editIcon).performClick()
                 val list = findList(shadowOf(RuntimeEnvironment.getApplication()).latestPopupWindow.contentView)!!

@@ -306,7 +306,7 @@ class LayoutCompatibilityTest {
         }
         root.findViewById<ChipGroup>(R.id.categoryChips)?.let { group ->
             CategoryCatalog.primary.forEach { label -> addChip(group, label, label == "正餐") }
-            root.findViewById<android.widget.HorizontalScrollView>(R.id.categoryScroll)?.let { EditorChoiceRows.bindCategories(group, it) }
+            EditorChoiceRows.bindCategoryGrid(group)
         }
         root.findViewById<ChipGroup>(R.id.paymentMethodChips)?.let { group ->
             PaymentMethod.entries.filter { it != PaymentMethod.OTHER }.forEach { addChip(group, UiFormat.method(it), it == PaymentMethod.WECHAT) }

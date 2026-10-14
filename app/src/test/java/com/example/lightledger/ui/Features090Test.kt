@@ -142,8 +142,8 @@ class Features090Test {
         } finally { controller.pause().stop().destroy() }
     }
 
-    @Test fun categoryFormDisablesFullTargetsAndDragCardsRenderAtLargeFont() {
-        val controller = DragTestSupport.controller()
+    @Test fun categoryFormDisablesFullTargetsAndGroupsRenderAtLargeFont() {
+        val controller = Robolectric.buildActivity(CategoryActivity::class.java).setup()
         try {
             val activity = controller.get(); val root = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
             await { texts(root).any { it.text == "娱乐" } }
@@ -171,22 +171,23 @@ class Features090Test {
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick()
             RuntimeEnvironment.setQualifiers("w320dp-h700dp-xxhdpi"); RuntimeEnvironment.setFontScale(1.3f)
             measure(root)
-            (texts(root).single { it.text == "娱乐" }.parent.parent.parent as View).performLongClick()
-            capture(root, "category-drag-large-font")
-            assertFalse(activity.findViewById<View>(R.id.dropNotificationPriority).isEnabled)
-            activity.findViewById<View>(R.id.categoryDragHost).dispatchDragEvent(DragTestSupport.event(android.view.DragEvent.ACTION_DRAG_ENDED, DragTestSupport.source!!))
+            assertFalse((texts(root).single { it.text == "娱乐" }.parent.parent.parent as View).isLongClickable)
+            capture(root, "category-groups-large-font")
             activity.findViewById<View>(R.id.addCategory).performClick()
             dialog = ShadowDialog.getLatestDialog() as AlertDialog
             dialog.findViewById<EditText>(R.id.categoryName)!!.setText("虚构分类")
             capture(dialog.window!!.decorView, "new-category-large-font", dialog = true)
             listOf(R.id.notificationPriority, R.id.commonPriority, R.id.occasionalPriority).forEach { id ->
                 val option = dialog.findViewById<MaterialButton>(id)!!
-                assertEquals(2, option.layout.lineCount)
-                assertEquals(option.text.length, option.layout.getLineEnd(1))
+                assertTrue(option.layout.lineCount in 2..3)
+                assertEquals(option.text.length, option.layout.getLineEnd(option.layout.lineCount - 1))
+                (0 until option.layout.lineCount).forEach { line -> assertEquals(0, option.layout.getEllipsisCount(line)) }
             }
+            assertFalse(dialog.findViewById<MaterialButton>(R.id.commonPriority)!!.isEnabled)
             dialog.findViewById<MaterialButton>(R.id.commonPriority)!!.performClick()
+            assertEquals(R.id.occasionalPriority, dialog.findViewById<MaterialButtonToggleGroup>(R.id.priorityChoices)!!.checkedButtonId)
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick()
-            await { runBlocking { db.dao().categoryList().any { it.name == "虚构分类" && it.priority == 1 } } }
+            await { runBlocking { db.dao().categoryList().any { it.name == "虚构分类" && it.priority == 2 } } }
         } finally { controller.pause().stop().destroy() }
     }
     private fun texts(v: View): List<TextView> = (if (v is TextView) listOf(v) else emptyList()) + (if (v is ViewGroup) (0 until v.childCount).flatMap { texts(v.getChildAt(it)) } else emptyList())

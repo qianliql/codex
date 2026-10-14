@@ -18,14 +18,16 @@ import kotlin.math.min
 class CategoryDonutView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     var onSliceClick: ((ExpenseSlice) -> Unit)? = null
     private var data = CategoryBreakdown(0, emptyList())
+    private var income = false
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var downX = 0f; private var downY = 0f
     private val d get() = resources.displayMetrics.density
     private val colors = intArrayOf(context.ledgerColor(R.color.ledger_teal), 0xFF6D87AB.toInt(), 0xFFC8986D.toInt(), 0xFF9183B3.toInt(), 0xFF70A5A2.toInt(), 0xFFBC7D8E.toInt(), 0xFF88A17C.toInt(), 0xFFAF936B.toInt(), 0xFF70838B.toInt())
     fun colorFor(index: Int): Int = if (data.slices.getOrNull(index)?.merged == true) 0xFFADB6B3.toInt() else colors[index % colors.size]
-    fun setData(value: CategoryBreakdown) {
+    fun setData(value: CategoryBreakdown, income: Boolean = false) {
         data = value
-        contentDescription = "分类支出圆环图，${UiFormat.money(value.totalCents)}。" + value.slices.joinToString("；") { "${it.label} ${UiFormat.money(it.amountCents)}" }
+        this.income = income
+        contentDescription = "分类${if (income) "收入" else "支出"}圆环图，${UiFormat.money(value.totalCents)}。" + value.slices.joinToString("；") { "${it.label} ${UiFormat.money(it.amountCents)}" }
         invalidate()
     }
     private val radius get() = min(width, height) * .39f
@@ -46,7 +48,7 @@ class CategoryDonutView(context: Context, attrs: AttributeSet? = null) : View(co
         }
         paint.style = Paint.Style.FILL; paint.color = context.ledgerColor(R.color.ledger_muted)
         paint.typeface = android.graphics.Typeface.DEFAULT; paint.textSize = sp(12f)
-        val label = if (data.totalCents == 0L) "本期暂无支出" else "分类总支出"
+        val label = if (data.totalCents == 0L) "本期暂无${if (income) "收入" else "支出"}" else "分类总${if (income) "收入" else "支出"}"
         canvas.drawText(label, cx - paint.measureText(label) / 2, cy - 12 * d, paint)
         paint.typeface = android.graphics.Typeface.DEFAULT_BOLD; paint.color = context.ledgerColor(R.color.ledger_ink); paint.textSize = sp(22f)
         val amount = UiFormat.money(data.totalCents)

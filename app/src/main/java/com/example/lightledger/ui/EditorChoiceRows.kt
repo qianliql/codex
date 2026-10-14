@@ -8,6 +8,27 @@ import kotlin.math.max
 
 /** Fixed row counts with widths derived from the actual available space. */
 internal object EditorChoiceRows {
+    /** Editor categories wrap vertically so adding a group never hides earlier choices. */
+    fun bindCategoryGrid(group: ChipGroup) {
+        group.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) fitCategoryGrid(group)
+        }
+        fitCategoryGrid(group)
+    }
+
+    fun fitCategoryGrid(group: ChipGroup) {
+        val chips = chips(group)
+        chips.forEach { compact(it, true) }
+        val density = group.resources.displayMetrics.density
+        val available = group.width.takeIf { it > 0 }
+            ?: group.resources.displayMetrics.widthPixels - (80 * density).toInt()
+        val width = ((available - group.chipSpacingHorizontal) / 2).coerceAtLeast((88 * density).toInt())
+        chips.forEach {
+            if (it.layoutParams.width != width) it.layoutParams = it.layoutParams.apply { this.width = width }
+            centerContent(it, width, true)
+        }
+    }
+
     fun bindCategories(group: ChipGroup, scroll: HorizontalScrollView) {
         scroll.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
             if (right - left != oldRight - oldLeft) fitCategories(group, scroll)
