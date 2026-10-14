@@ -45,6 +45,15 @@ class TransactionEditorActivity : LedgerActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityTransactionEditorBinding.inflate(layoutInflater)
+        val id = intent.getLongExtra("id", 0)
+        if (id != 0L) {
+            // The record is read asynchronously. Never render the new-bill form for an edit.
+            binding.pageTitle.text = "编辑账单"
+            binding.editorScroll.visibility = View.INVISIBLE
+            binding.save.visibility = View.INVISIBLE
+        } else if (intent.action == ACTION_SCREENSHOT_CONFIRM) {
+            binding.pageTitle.text = "确认截图账单"
+        }
         setContentView(binding.root)
         SystemBarInsets.apply(binding.root)
         EditorChoiceRows.bindCategories(binding.categoryChips, binding.categoryScroll)
@@ -83,7 +92,6 @@ class TransactionEditorActivity : LedgerActivity() {
         binding.save.setOnClickListener { save() }
         binding.delete.setOnClickListener { confirmDelete() }
         updateTimeLabel()
-        val id = intent.getLongExtra("id", 0)
         lifecycleScope.launch {
             categories = repository.categoryList()
             tags = repository.tags()
@@ -96,6 +104,8 @@ class TransactionEditorActivity : LedgerActivity() {
                 refundOfId = existing!!.refundOfTransactionId
                 updateTagLabel()
                 updateRefundLabel()
+                binding.editorScroll.visibility = View.VISIBLE
+                binding.save.visibility = View.VISIBLE
             } else if (intent.action == ACTION_SCREENSHOT_CONFIRM) {
                 showScreenshotDraft()
                 if (selectedType == TransactionType.EXPENSE) repository.suggestedCategory(binding.merchant.text?.toString())?.let(::selectCategory)

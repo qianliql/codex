@@ -56,6 +56,8 @@ class TransactionsFragment : Fragment() {
     private var hasMore = false
     private var pageFailed = false
     private val pageSize = 100
+    private data class ScrollAnchor(val transactionId: Long, val position: Int, val top: Int)
+    private var pendingScrollAnchor: ScrollAnchor? = null
     private val selectedIds = linkedSetOf<Long>()
     private var selectionMode = false
     private var deleting = false
@@ -125,7 +127,7 @@ class TransactionsFragment : Fragment() {
             refresh()
         }
         updateSelectionUi()
-        model.transactionChangeSignal.observe(viewLifecycleOwner) { if (!selectionMode) refresh() }
+        model.transactionChangeSignal.observe(viewLifecycleOwner) { if (!selectionMode) refresh(preservePosition = true) }
         arguments?.getLong("select_id", 0)?.takeIf { it > 0 && savedInstanceState == null }?.let { id ->
             viewLifecycleOwner.lifecycleScope.launch {
                 repository.transaction(id)?.let { chooseMonth(MonthSelection.at(it.timestamp)) }
@@ -133,7 +135,7 @@ class TransactionsFragment : Fragment() {
         }
     }
 
-    override fun onResume() { super.onResume(); if (binding != null && (!selectionMode || rows.isEmpty())) refresh() }
+    override fun onResume() { super.onResume(); if (binding != null && (!selectionMode || rows.isEmpty())) refresh(preservePosition = true) }
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putLongArray("selected_ids", selectedIds.toLongArray())
@@ -195,14 +197,27 @@ class TransactionsFragment : Fragment() {
             }.show()
     }
 
-    private fun refresh() {
+    private fun currentScrollAnchor(): ScrollAnchor? {
+        val list = binding?.transactionList ?: return null
+        val manager = list.layoutManager as? LinearLayoutManager ?: return null
+        val position = manager.findFirstVisibleItemPosition()
+        val row = adapter?.currentList?.getOrNull(position) ?: return null
+        return ScrollAnchor(row.transaction.id, position, manager.findViewByPosition(position)?.top ?: 0)
+    }
+
+    private fun refresh(preservePosition: Boolean = false) {
+        val anchor = if (preservePosition) currentScrollAnchor() ?: pendingScrollAnchor else null
+        pendingScrollAnchor = anchor
         queryGeneration++
         queryJob?.cancel()
         updateSearchUi()
         binding?.resultCount?.text = "正在查找账单…"
         rows.clear()
-        adapter?.submitList(emptyList())
-        binding?.transactionList?.scrollToPosition(0)
+        // Keep the previous list visible until the anchor's page has loaded.
+        if (anchor == null) {
+            adapter?.submitList(emptyList())
+            binding?.transactionList?.scrollToPosition(0)
+        }
         hasMore = false
         pageFailed = false
         loading = false
@@ -213,7 +228,8 @@ class TransactionsFragment : Fragment() {
     private fun loadIfNearEnd() {
         val list = binding?.transactionList ?: return
         val manager = list.layoutManager as? LinearLayoutManager ?: return
-        if (!loading && hasMore && !pageFailed && manager.findLastVisibleItemPosition() >= rows.size - 10) loadNext()
+        if (!loading && pendingScrollAnchor == null && hasMore && !pageFailed &&
+            manager.findLastVisibleItemPosition() >= rows.size - 10) loadNext()
     }
 
     private fun loadNext() {
@@ -221,18 +237,30 @@ class TransactionsFragment : Fragment() {
         if (loading || (rows.isNotEmpty() && !hasMore)) return
         loading = true
         val generation = queryGeneration
+        val anchor = pendingScrollAnchor
         b.resultCount.text = if (rows.isEmpty()) "正在查找账单…" else "已显示 ${rows.size} 笔 · 加载中…"
         queryJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val page = repository.searchTransactions(filter.search, filter.start, filter.end,
-                    filter.categoryId, filter.tagId, filter.method, filter.source, filter.type,
-                    pendingOnly, pageSize, rows.size, filter.amountPendingOnly)
-                if (generation != queryGeneration || binding !== b) return@launch
-                rows.addAll(page)
-                hasMore = page.size == pageSize
+                do {
+                    val page = repository.searchTransactions(filter.search, filter.start, filter.end,
+                        filter.categoryId, filter.tagId, filter.method, filter.source, filter.type,
+                        pendingOnly, pageSize, rows.size, filter.amountPendingOnly)
+                    if (generation != queryGeneration || binding !== b) return@launch
+                    rows.addAll(page)
+                    hasMore = page.size == pageSize
+                } while (anchor != null && hasMore && rows.none { it.transaction.id == anchor.transactionId })
                 adapter?.submitList(rows.toList()) {
-                    // Wait for DiffUtil/layout before deciding whether another page is needed.
-                    b.transactionList.post { if (generation == queryGeneration && binding === b) loadIfNearEnd() }
+                    if (generation == queryGeneration && binding === b) {
+                        if (anchor != null && rows.isNotEmpty()) {
+                            val position = rows.indexOfFirst { it.transaction.id == anchor.transactionId }
+                                .takeIf { it >= 0 } ?: anchor.position.coerceAtMost(rows.lastIndex)
+                            (b.transactionList.layoutManager as? LinearLayoutManager)
+                                ?.scrollToPositionWithOffset(position, anchor.top)
+                        }
+                        pendingScrollAnchor = null
+                        // Wait for DiffUtil/layout before deciding whether another page is needed.
+                        b.transactionList.post { if (generation == queryGeneration && binding === b) loadIfNearEnd() }
+                    }
                 }
                 b.emptyTransactions.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
                 b.emptyTransactions.text = when {
@@ -325,6 +353,7 @@ class TransactionsFragment : Fragment() {
         binding?.transactionList?.removeOnScrollListener(pagingScroll)
         binding?.transactionList?.adapter = null
         adapter = null
+        pendingScrollAnchor = null
         selectionBack = null
         binding = null
         super.onDestroyView()
