@@ -25,6 +25,7 @@ class TransactionEditorActivity : LedgerActivity() {
     private lateinit var binding: ActivityTransactionEditorBinding
     private val repository by lazy { (application as LedgerApp).repository }
     private var categories: List<Category> = emptyList()
+    private var showOccasional = false
     private var existing: LedgerTransaction? = null
     private var tags: List<Tag> = emptyList()
     private val selectedTagIds = mutableSetOf<Long>()
@@ -58,6 +59,10 @@ class TransactionEditorActivity : LedgerActivity() {
         EditorChoiceRows.bindCategoryGrid(binding.occasionalCategoryChips)
         EditorChoiceRows.bindPayments(binding.paymentMethodChips)
         binding.goBack.setOnClickListener { finish() }
+        binding.expandCategories.setOnClickListener {
+            showOccasional = !showOccasional
+            updateOccasionalVisibility()
+        }
         binding.moreDetails.setOnClickListener { showMoreDetails(binding.additionalDetails.visibility != View.VISIBLE) }
         binding.amount.doAfterTextChanged { editable ->
             binding.amountInput.error = null
@@ -84,6 +89,7 @@ class TransactionEditorActivity : LedgerActivity() {
             }
             selectedCategoryId = if (typeCategories.containsKey(selectedType)) typeCategories[selectedType]
                 else categories.firstOrNull { it.name == "其他" }?.id
+            showOccasional = false
             if (selectedType == TransactionType.INCOME) showMoreDetails(false)
             showCategoryChoices()
         }
@@ -191,12 +197,17 @@ class TransactionEditorActivity : LedgerActivity() {
         binding.occasionalCategoryChips.removeAllViews()
         categoryChips.clear()
         CategoryCatalog.choices(categories, selectedType).forEach(::addCategoryChip)
-        val hasOccasional = binding.occasionalCategoryChips.childCount > 0
-        binding.occasionalCategoryHeading.visibility = if (hasOccasional) View.VISIBLE else View.GONE
-        binding.occasionalCategoryChips.visibility = if (hasOccasional) View.VISIBLE else View.GONE
         EditorChoiceRows.fitCategoryGrid(binding.categoryChips)
         EditorChoiceRows.fitCategoryGrid(binding.occasionalCategoryChips)
         selectCategory(selection)
+        updateOccasionalVisibility()
+    }
+
+    private fun updateOccasionalVisibility() {
+        val count = binding.occasionalCategoryChips.childCount
+        binding.expandCategories.visibility = if (count > 0) View.VISIBLE else View.GONE
+        binding.expandCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（$count）▾"
+        binding.occasionalCategoryChips.visibility = if (count > 0 && showOccasional) View.VISIBLE else View.GONE
     }
 
     private fun addCategoryChip(category: Category) {
@@ -270,12 +281,14 @@ class TransactionEditorActivity : LedgerActivity() {
         }
         if (categoryId !in categoryChips) categories.firstOrNull { it.id == categoryId }?.let {
             addCategoryChip(it)
-            if (binding.occasionalCategoryChips.childCount > 0) {
-                binding.occasionalCategoryHeading.visibility = View.VISIBLE
-                binding.occasionalCategoryChips.visibility = View.VISIBLE
-            }
             EditorChoiceRows.fitCategoryGrid(binding.categoryChips)
             EditorChoiceRows.fitCategoryGrid(binding.occasionalCategoryChips)
+        }
+        if (categoryId in categoryChips && categories.any {
+                it.id == categoryId && it.priority == CategoryPriority.OCCASIONAL && selectedType != TransactionType.INCOME
+            }) {
+            showOccasional = true
+            updateOccasionalVisibility()
         }
         categoryChips[categoryId]?.isChecked = true
     }

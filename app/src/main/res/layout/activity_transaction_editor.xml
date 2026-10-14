@@ -24,7 +24,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                     <TextView style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="选择分类" />
                     <com.google.android.material.chip.ChipGroup android:id="@+id/categoryChips" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" app:chipSpacingHorizontal="6dp" app:chipSpacingVertical="6dp" app:singleSelection="true" />
-                    <TextView android:id="@+id/occasionalCategoryHeading" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="不常用" android:visibility="gone" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/expandCategories" style="@style/LedgerTextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="start|center_vertical" android:text="展开不常用分类 ▾" android:visibility="gone" />
                     <com.google.android.material.chip.ChipGroup android:id="@+id/occasionalCategoryChips" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" app:chipSpacingHorizontal="6dp" app:chipSpacingVertical="6dp" app:singleSelection="true" android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

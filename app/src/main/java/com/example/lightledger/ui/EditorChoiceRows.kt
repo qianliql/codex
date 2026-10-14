@@ -8,7 +8,7 @@ import kotlin.math.max
 
 /** Fixed row counts with widths derived from the actual available space. */
 internal object EditorChoiceRows {
-    /** Editor categories wrap vertically so adding a group never hides earlier choices. */
+    /** Keep four categories per visible row, including on narrow phones. */
     fun bindCategoryGrid(group: ChipGroup) {
         group.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
             if (right - left != oldRight - oldLeft) fitCategoryGrid(group)
@@ -22,9 +22,16 @@ internal object EditorChoiceRows {
         val density = group.resources.displayMetrics.density
         val available = group.width.takeIf { it > 0 }
             ?: group.resources.displayMetrics.widthPixels - (80 * density).toInt()
-        val width = ((available - group.chipSpacingHorizontal) / 2).coerceAtLeast((88 * density).toInt())
+        val width = ((available - 3 * group.chipSpacingHorizontal) / 4)
+            .coerceAtLeast((48 * density).toInt())
         chips.forEach {
             if (it.layoutParams.width != width) it.layoutParams = it.layoutParams.apply { this.width = width }
+            it.chipIconSize = 15 * density
+            it.iconEndPadding = 2 * density
+            val room = (width - it.chipIconSize - it.iconEndPadding - 6 * density).coerceAtLeast(1f)
+            val natural = it.paint.measureText(it.text.toString()).coerceAtLeast(1f)
+            if (natural > room) it.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,
+                (it.textSize * room / natural).coerceAtLeast(10 * group.resources.displayMetrics.scaledDensity))
             centerContent(it, width, true)
         }
     }
@@ -84,7 +91,7 @@ internal object EditorChoiceRows {
         val d = chip.resources.displayMetrics.density
         val iconWidth = if (icon) chip.chipIconSize + chip.iconEndPadding else 0f
         val textWidth = chip.paint.measureText(chip.text.toString()).coerceAtMost((width - iconWidth - 8 * d).coerceAtLeast(0f))
-        val side = ((width - iconWidth - textWidth) / 2).coerceAtLeast(4 * d)
+        val side = ((width - iconWidth - textWidth) / 2).coerceAtLeast((if (icon) 2 else 4) * d)
         chip.chipStartPadding = side; chip.chipEndPadding = side
     }
 
