@@ -6,6 +6,7 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 import androidx.appcompat.app.AlertDialog
 import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
@@ -39,8 +40,13 @@ class CategoryScreen060Test {
         val controller = Robolectric.buildActivity(CategoryActivity::class.java).setup()
         try {
             val activity = controller.get()
-            val container = activity.findViewById<ViewGroup>(R.id.categoryContainer)
-            await { container.childCount > 5 }
+            val container = activity.findViewById<RecyclerView>(R.id.categoryContainer)
+            val root = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
+            val adapter = container.adapter as CategoryManageAdapter
+            await { adapter.positionOfCategory("旅行") >= 0 }
+            measure(root)
+            container.scrollToPosition(adapter.positionOfCategory("旅行"))
+            await { texts(container).any { it.text.toString() == "旅行" } }
             assertTrue(texts(container).any { it.text.toString() == "旅行" })
             texts(container).single { it.text.toString() == "旅行" }.let { name -> (name.parent.parent.parent as View).performClick() }
             val dialog = ShadowDialog.getLatestDialog() as AlertDialog
@@ -55,8 +61,7 @@ class CategoryScreen060Test {
             await { !dialog.isShowing }
             val selected = runBlocking { db.dao().categoryList() }.single { it.id == travelId }
             assertEquals(1, selected.priority); assertEquals("car", selected.iconKey)
-            await { texts(container).any { it.text.toString() == "常用 · 5/5" } }
-            val root = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
+            await { adapter.heading("常用 · 5/5") }
             measure(root); save(root, "categories-real")
             runBlocking { db.dao().saveCategoryPreferences(selected.copy(priority = 2)) }
             val search = ActivityTransactionSearchBinding.inflate(activity.layoutInflater)

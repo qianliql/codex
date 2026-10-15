@@ -16,7 +16,6 @@ class MyFragment : Fragment() {
         binding = b
         b.themeSettings.setOnClickListener { startActivity(Intent(requireContext(), ThemeActivity::class.java)) }
         b.manageCategories.setOnClickListener { startActivity(Intent(requireContext(), CategoryActivity::class.java)) }
-        b.manageTags.setOnClickListener { startActivity(Intent(requireContext(), TagsActivity::class.java)) }
         b.manageMerchantRules.setOnClickListener { startActivity(Intent(requireContext(), MerchantRulesActivity::class.java)) }
         b.openSettings.setOnClickListener { startActivity(Intent(requireContext(), SettingsActivity::class.java)) }
         b.appVersion.text = "轻账本 ${InstalledVersion.read(requireContext()).name}"

@@ -76,6 +76,20 @@ interface LedgerDao {
         java.util.Collections.swap(group, from, to)
         group.forEachIndexed { index, category -> updateCategory(category.copy(sortOrder = index)) }
     }
+    @Transaction suspend fun reorderCategories(orderedIds: List<Long>) {
+        require(orderedIds.isNotEmpty() && orderedIds.size == orderedIds.distinct().size) { "分类排序无效" }
+        val all = categoryList()
+        val selected = all.firstOrNull { it.id == orderedIds.first() } ?: error("分类不存在")
+        require(selected.name != CategoryCatalog.unclassified) { "未分类不能排序" }
+        val group = if (selected.scope == CategoryScope.INCOME) all.filter { it.scope == CategoryScope.INCOME }
+            else all.filter { it.scope != CategoryScope.INCOME && it.priority == selected.priority && it.name != CategoryCatalog.unclassified }
+        require(group.size == orderedIds.size && group.map { it.id }.toSet() == orderedIds.toSet()) { "只能在同一分组内排序" }
+        val byId = group.associateBy { it.id }
+        orderedIds.forEachIndexed { index, id ->
+            val category = byId.getValue(id)
+            if (category.sortOrder != index) updateCategory(category.copy(sortOrder = index))
+        }
+    }
     @Delete suspend fun deleteCategory(category: Category)
     @Query("SELECT (SELECT COUNT(*) FROM transactions WHERE categoryId = :categoryId) AS billCount, (SELECT COUNT(*) FROM merchant_rules WHERE categoryId = :categoryId) AS ruleCount")
     suspend fun categoryUsage(categoryId: Long): CategoryUsage

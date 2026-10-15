@@ -95,6 +95,28 @@ class Upgrade060Test {
         } finally { db.close() }
     }
 
+    @Test fun dragOrderShiftsOnlyItsGroupAndKeepsBillReferences() = runBlocking {
+        val db = database()
+        try {
+            val dao = db.dao()
+            listOf("正餐", "零食", "日用").forEach { dao.saveCategoryPreferences(Category(name = it, priority = 0)) }
+            listOf("娱乐", "数码").forEach { dao.saveCategoryPreferences(Category(name = it, priority = 1)) }
+            val notification = CategoryPriority.notification(dao.categoryList())
+            val common = dao.categoryList().filter { it.priority == 1 }
+            dao.insertTransaction(LedgerTransaction(amountCents = 1234, type = TransactionType.EXPENSE,
+                timestamp = date(2026, 10), categoryId = notification.first().id))
+            dao.reorderCategories(listOf(notification.last().id, notification.first().id, notification[1].id))
+            assertEquals(listOf("日用", "正餐", "零食"), CategoryPriority.notification(dao.categoryList()).map { it.name })
+            assertEquals(listOf("娱乐", "数码"), dao.categoryList().filter { it.priority == 1 }.map { it.name })
+            assertEquals(notification.first().id, dao.transaction(1)!!.categoryId)
+            val before = dao.categoryList()
+            assertTrue(runCatching { dao.reorderCategories(listOf(notification.first().id, common.first().id)) }.isFailure)
+            assertEquals(before, dao.categoryList())
+            assertTrue(runCatching { dao.reorderCategories(listOf(notification.first().id, notification.first().id, notification.last().id)) }.isFailure)
+            assertEquals(before, dao.categoryList())
+        } finally { db.close() }
+    }
+
     @Test fun actualSchema6MigratesTo8KeepingBillsTagsRefundsRulesAndSettings() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val name = "migration-060.db"

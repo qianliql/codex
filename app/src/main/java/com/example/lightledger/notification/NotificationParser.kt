@@ -60,6 +60,9 @@ internal object PaymentTextParser {
     private val merchantPattern = Regex("(?:商户|收款方|交易对象)\\s*[:：]\\s*([^，,。;；\\n¥￥0-9]{2,30})")
     private val toMerchantPattern = Regex("向([^，,。;；\\n¥￥0-9]{2,30})付款")
     private val strongOutcomes = listOf("支付成功", "付款成功", "付款完成", "支付完成", "成功付款", "成功支付", "扣款成功", "已支付", "交易成功", "收款成功", "收款到账", "退款成功", "退款到账", "转账成功")
+    // Alipay's transaction reminder may describe a completed expense before offering points.
+    // Require both the single-expense wording and a currency-marked amount.
+    private val singleExpense = Regex("(?:你有)?一笔\\s*(?:[¥￥]\\s*[0-9][0-9,]*(?:\\.[0-9]{1,2})?|[0-9][0-9,]*(?:\\.[0-9]{1,2})?\\s*元)\\s*的支出")
 
     fun hasOfficialWeChatPrefix(text: String) = officialWeChatPrefix.containsMatchIn(text)
 
@@ -70,13 +73,15 @@ internal object PaymentTextParser {
     private fun amount(text: String) = AmountExtractor.extract(normalizedAmounts(text))
 
     fun hasStrongOutcomeWithAmount(text: String): Boolean =
-        strongOutcomes.any(text::contains) && amount(text) != null && !invalidOutcome.containsMatchIn(text)
+        (strongOutcomes.any(text::contains) || singleExpense.containsMatchIn(text)) &&
+            amount(text) != null && !invalidOutcome.containsMatchIn(text)
 
     fun rejectionReason(title: String, text: String): String {
         val combined = "$title\n$text"
         return when {
             reportPattern.containsMatchIn(combined) -> "日报、月报等汇总消息，已跳过"
             invalidOutcome.containsMatchIn(combined) -> "待支付、处理中或失败消息，已跳过"
+            promotionPattern.containsMatchIn(combined) && !hasStrongOutcomeWithAmount(text) -> "促销内容未确认单笔交易，已跳过"
             amount(combined) == null -> "没有可靠的单笔金额（缺少金额或金额冲突），已跳过"
             else -> "未确认支付来源或交易结果，已跳过"
         }

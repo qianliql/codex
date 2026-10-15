@@ -15,7 +15,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.lightledger.databinding.RowCategoryManageBinding
 import com.example.lightledger.databinding.RowExpenseSliceBinding
 import com.example.lightledger.databinding.DialogCategoryNameBinding
 import com.google.android.material.chip.Chip
@@ -280,16 +279,16 @@ class LayoutCompatibilityTest {
         text(R.id.netExpense, "¥1,286.50")
         text(R.id.expense, "¥1,386.50")
         text(R.id.refund, "¥100.00")
-        root.findViewById<LinearLayout>(R.id.categoryContainer)?.let {
-            if (layout == R.layout.activity_category) {
-                CategoryCatalog.primary.forEach { label ->
-                    val row = RowCategoryManageBinding.inflate(android.view.LayoutInflater.from(root.context), it, false)
-                    row.categoryName.text = label
-                    row.categoryHint.text = "常用分类 · 点击改名"
-                    CategoryIcons.apply(row.categoryIcon, label)
-                    it.addView(row.root)
+        if (layout == R.layout.activity_category) {
+            root.findViewById<RecyclerView>(R.id.categoryContainer).apply {
+                layoutManager = LinearLayoutManager(root.context)
+                adapter = CategoryManageAdapter({}, { _, _ -> }, {}).apply {
+                    show(CategoryCatalog.primary.mapIndexed { index, name ->
+                        Category(id = index + 1L, name = name, priority = CategoryPriority.defaultFor(name), sortOrder = index)
+                    })
                 }
-            } else {
+            }
+        } else root.findViewById<LinearLayout>(R.id.categoryContainer)?.let {
                 val data = com.example.lightledger.statistics.CategoryBreakdown.from(listOf(
                     ExpenseCategoryTotal(1, "正餐", 82650), ExpenseCategoryTotal(2, "日用", 29900),
                     ExpenseCategoryTotal(3, "娱乐", 16100), ExpenseCategoryTotal(4, "交通", 5000)))
@@ -302,7 +301,6 @@ class LayoutCompatibilityTest {
                     row.sliceAmount.text = UiFormat.money(slice.amountCents)
                     legend.addView(row.root)
                 }
-            }
         }
         root.findViewById<ChipGroup>(R.id.categoryChips)?.let { group ->
             CategoryCatalog.primary.forEach { label -> addChip(group, label, label == "正餐") }

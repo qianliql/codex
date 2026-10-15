@@ -73,6 +73,7 @@ class LedgerRepository(private val dao: LedgerDao) {
     suspend fun renameCategory(category: Category, name: String) = dao.saveCategoryPreferences(category.copy(name = name.trim()))
     suspend fun saveCategoryPreferences(category: Category) = dao.saveCategoryPreferences(category)
     suspend fun moveCategory(id: Long, delta: Int) = dao.moveCategory(id, delta)
+    suspend fun reorderCategories(orderedIds: List<Long>) = dao.reorderCategories(orderedIds)
     suspend fun deleteCategory(category: Category) {
         dao.removeCategory(category)
     }

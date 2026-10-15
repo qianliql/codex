@@ -2,18 +2,17 @@ package com.example.lightledger.ui
 
 import android.os.Bundle
 import android.view.View
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
 import com.example.lightledger.data.*
 import com.example.lightledger.databinding.ActivityCategoryBinding
 import com.example.lightledger.databinding.DialogCategoryPreferencesBinding
-import com.example.lightledger.databinding.RowCategoryManageBinding
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -24,12 +23,25 @@ class CategoryActivity : LedgerActivity() {
     private lateinit var binding: ActivityCategoryBinding
     private val repository by lazy { (application as LedgerApp).repository }
     private var categories = emptyList<Category>()
+    private lateinit var categoryAdapter: CategoryManageAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityCategoryBinding.inflate(layoutInflater)
         setContentView(binding.root)
         SystemBarInsets.apply(binding.root)
+        categoryAdapter = CategoryManageAdapter(
+            onEdit = ::editCategory,
+            onDelete = ::showActions,
+            onReordered = { ids -> lifecycleScope.launch {
+                try { repository.reorderCategories(ids) }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { toast("排序失败，请重试"); showCategories() }
+            } },
+        )
+        binding.categoryContainer.layoutManager = LinearLayoutManager(this)
+        binding.categoryContainer.adapter = categoryAdapter
+        categoryAdapter.attachTo(binding.categoryContainer)
         binding.addCategory.setOnClickListener { editCategory(null) }
         lifecycleScope.launch {
             try { repository.enforceCommonCategoryLimit() }
@@ -40,61 +52,14 @@ class CategoryActivity : LedgerActivity() {
     }
 
     private fun showCategories() {
-        val container = binding.categoryContainer
-        container.removeAllViews()
-        (0..2).forEach { priority ->
-            val group = CategoryPriority.ordered(categories).filter { it.scope != CategoryScope.INCOME && it.priority == priority && it.name != CategoryCatalog.unclassified }
-            val limit = CategoryPriority.limit(priority)
-            val heading = CategoryPriority.label(priority) + if (priority == 2) " · ${group.size}" else " · ${group.size}/$limit"
-            container.addView(TextView(this).apply {
-                text = heading; textSize = 15f; setTypeface(typeface, android.graphics.Typeface.BOLD)
-                setTextColor(context.ledgerColor(R.color.ledger_ink)); setPadding(0, dp(10), 0, dp(12))
-            })
-            group.forEachIndexed { index, category ->
-                val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
-                item.categoryName.text = category.name
-                CategoryIcons.apply(item.categoryIcon, category.name, category.iconKey)
-                item.root.setOnClickListener { editCategory(category) }
-                item.editIcon.setOnClickListener { showActions(it, category, index, group.size) }
-                container.addView(item.root)
-            }
-            if (group.isEmpty()) container.addView(TextView(this).apply {
-                text = "暂无分类"; textSize = 13f; setPadding(0, 0, 0, dp(12)); setTextColor(context.ledgerColor(R.color.ledger_muted))
-            })
-        }
-        val income = CategoryCatalog.choices(categories, TransactionType.INCOME).filter { it.scope == CategoryScope.INCOME }
-        if (income.isNotEmpty()) container.addView(TextView(this).apply {
-            text = "收入分类"; textSize = 15f; setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setTextColor(context.ledgerColor(R.color.ledger_ink)); setPadding(0, dp(16), 0, dp(12))
-        })
-        income.forEachIndexed { index, category ->
-            val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
-            item.categoryName.text = category.name
-            CategoryIcons.apply(item.categoryIcon, category.name, category.iconKey)
-            item.root.setOnClickListener { editCategory(category) }
-            item.editIcon.setOnClickListener { showActions(it, category, index, income.size) }
-            container.addView(item.root)
-        }
-        categories.firstOrNull { it.name == CategoryCatalog.unclassified }?.let { category ->
-            val item = RowCategoryManageBinding.inflate(layoutInflater, container, false)
-            item.categoryName.text = category.name
-            CategoryIcons.apply(item.categoryIcon, category.name, category.iconKey)
-            item.editIcon.setOnClickListener { showActions(it, category, 0, 1) }
-            container.addView(item.root)
-        }
+        categoryAdapter.show(categories)
     }
 
-    private fun showActions(anchor: View, category: Category, index: Int, size: Int) {
+    private fun showActions(anchor: View, category: Category) {
         PopupMenu(this, anchor).apply {
-            menu.add(0, 1, 0, "上移").isEnabled = index > 0
-            menu.add(0, 2, 1, "下移").isEnabled = index < size - 1
-            menu.add(0, 3, 2, "删除分类")
+            menu.add(0, 1, 0, "删除分类")
             setOnMenuItemClickListener { item ->
-                if (item.itemId == 3) confirmDelete(category)
-                else lifecycleScope.launch {
-                    try { repository.moveCategory(category.id, if (item.itemId == 1) -1 else 1) }
-                    catch (e: Exception) { toast("排序失败，请重试") }
-                }
+                if (item.itemId == 1) confirmDelete(category)
                 true
             }
             show()

@@ -7,7 +7,6 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp">
                 <com.google.android.material.button.MaterialButton android:id="@+id/themeSettings" app:icon="@drawable/ic_grid" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="主题配色" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/manageCategories" app:icon="@drawable/ic_grid" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="分类管理" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/manageTags" app:icon="@drawable/ic_tag" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="标签管理" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/manageMerchantRules" app:icon="@drawable/ic_rule" style="@style/LedgerSettingsRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:text="商户分类规则" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

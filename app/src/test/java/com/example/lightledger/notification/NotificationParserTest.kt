@@ -101,6 +101,16 @@ class NotificationParserTest {
         assertEquals(TransactionType.EXPENSE, result?.type)
     }
 
+    @Test fun alipaySingleExpenseWithPointsOfferIsStillACompletedPayment() {
+        val text = "你有一笔12.34元的支出，点击领取2个支付宝积分。使用花呗支付，请及时还款。"
+        val result = NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", text)
+        assertEquals(1234L, result?.amountCents)
+        assertEquals(TransactionType.EXPENSE, result?.type)
+        assertEquals(com.example.lightledger.data.PaymentMethod.ALIPAY, result?.paymentMethod)
+        assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", "点击领取2个支付宝积分"))
+        assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", "你有一笔支出，点击领取积分"))
+    }
+
     @Test fun genericPromotionWithoutPaymentOutcomeIsIgnored() {
         assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "服务通知", "领取消费券 ¥8.80"))
         assertNull(NotificationParserRegistry.parse("com.tencent.mm", "服务通知", "满减优惠 ¥8.80"))

@@ -56,6 +56,7 @@ class SettingsAndUpdate0110Test {
             activity.findViewById<BottomNavigationView>(R.id.bottomNavigation).selectedItemId = R.id.nav_settings
             activity.supportFragmentManager.executePendingTransactions()
             assertNotNull(activity.findViewById<View>(R.id.openSettings))
+            assertNull(activity.findViewById<View>(R.id.manageTags))
             assertNull(activity.findViewById<View>(R.id.exportBackup))
             assertEquals("轻账本 ${InstalledVersion.read(app).name}", activity.findViewById<TextView>(R.id.appVersion).text)
             activity.findViewById<View>(R.id.openSettings).performClick()
@@ -66,6 +67,8 @@ class SettingsAndUpdate0110Test {
         try {
             val activity = settings.get(); activity.supportFragmentManager.executePendingTransactions()
             assertNotNull(activity.findViewById<View>(R.id.notificationSettings))
+            activity.findViewById<View>(R.id.manageTags).performClick()
+            assertEquals(TagsActivity::class.java.name, shadowOf(activity).nextStartedActivity.component!!.className)
             val group = activity.findViewById<View>(R.id.exportBackup).parent as ViewGroup
             assertEquals(2, group.childCount)
             assertTrue(activity.findViewById<TextView>(R.id.currentVersion).text.contains(InstalledVersion.read(app).name))
@@ -78,7 +81,7 @@ class SettingsAndUpdate0110Test {
     @Test fun downloadShowsNotesVerifiesPackageAndRequestsSystemPermission() {
         val content = byteArrayOf(1, 2, 3)
         val scratch = File(app.cacheDir, "hash-sample").apply { writeBytes(content) }
-        val info = UpdateInfo("1.1.0", 28, 26, "https://github.com/qianliql/codex/releases/download/v1.1.0/LightLedger-1.1.0-debug.apk",
+        val info = UpdateInfo("1.1.0", 29, 26, "https://github.com/qianliql/codex/releases/download/v1.1.0/LightLedger-1.1.0-debug.apk",
             UpdateApkVerifier.sha256(scratch), 3, "设置更简洁\n应用内下载更新", UpdateSpec.RELEASE_PAGE)
         scratch.delete()
         val pm = shadowOf(app.packageManager)
@@ -134,7 +137,7 @@ class SettingsAndUpdate0110Test {
     }
     @Test fun newVersionPromptDoesNotDependOnNotificationPermission() {
         Settings.Secure.putString(app.contentResolver, "enabled_notification_listeners", "")
-        val future = UpdateInfo("1.1.0", 28, 26, "https://github.com/qianliql/codex/releases/download/v1.1.0/LightLedger-1.1.0-debug.apk",
+        val future = UpdateInfo("1.1.0", 29, 26, "https://github.com/qianliql/codex/releases/download/v1.1.0/LightLedger-1.1.0-debug.apk",
             "a".repeat(64), 3, "更新说明", UpdateSpec.RELEASE_PAGE)
         UpdateManager.gateway = object : UpdateGateway {
             override fun check(current: InstalledVersion) = future
@@ -142,10 +145,10 @@ class SettingsAndUpdate0110Test {
         }
         val main = Robolectric.buildActivity(MainActivity::class.java).setup()
         try {
-            try { await { app.getSharedPreferences("app_updates", 0).getLong("last_prompted", 0) == 28L } }
+            try { await { app.getSharedPreferences("app_updates", 0).getLong("last_prompted", 0) == 29L } }
             catch (error: AssertionError) { throw AssertionError("State=${UpdateManager.state.value}, prefs=${app.getSharedPreferences("app_updates", 0).all}", error) }
-            assertEquals(28L, app.getSharedPreferences("app_updates", 0).getLong("last_prompted", 0))
-            assertFalse(File(app.cacheDir, "updates/lightledger-28.apk").exists())
+            assertEquals(29L, app.getSharedPreferences("app_updates", 0).getLong("last_prompted", 0))
+            assertFalse(File(app.cacheDir, "updates/lightledger-29.apk").exists())
         } finally { main.pause().stop().destroy() }
     }
     private fun await(done: () -> Boolean) {

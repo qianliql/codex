@@ -55,6 +55,7 @@ class SettingsFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val b = FragmentSettingsBinding.inflate(inflater, container, false)
         binding = b
+        b.manageTags.setOnClickListener { startActivity(Intent(requireContext(), TagsActivity::class.java)) }
         b.currentVersion.text = "当前版本 ${com.example.lightledger.update.InstalledVersion.read(requireContext()).name}"
         b.checkForUpdates.setOnClickListener { startActivity(Intent(requireContext(), AppUpdateActivity::class.java)) }
         b.exportBackup.setOnClickListener { createBackup.launch("lightledger_backup_${fileDate()}.json") }

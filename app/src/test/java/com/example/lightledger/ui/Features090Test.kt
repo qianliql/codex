@@ -171,7 +171,7 @@ class Features090Test {
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick()
             RuntimeEnvironment.setQualifiers("w320dp-h700dp-xxhdpi"); RuntimeEnvironment.setFontScale(1.3f)
             measure(root)
-            assertFalse((texts(root).single { it.text == "娱乐" }.parent.parent.parent as View).isLongClickable)
+            assertTrue((texts(root).single { it.text == "正餐" }.parent.parent.parent as View).isLongClickable)
             capture(root, "category-groups-large-font")
             activity.findViewById<View>(R.id.addCategory).performClick()
             dialog = ShadowDialog.getLatestDialog() as AlertDialog

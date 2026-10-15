@@ -163,7 +163,7 @@ class Features080Test {
             val root = activity.findViewById<ViewGroup>(R.id.categoryContainer)
             fun row(name: String) = texts(root).single { it.text.toString() == name }.parent.parent.parent as View
             await { texts(root).any { it.text.toString() == "日用" } }
-            assertFalse(row("日用").isLongClickable)
+            assertTrue(row("日用").isLongClickable)
             row("日用").performClick()
             var editDialog = ShadowDialog.getLatestDialog() as AlertDialog
             assertEquals("日用", editDialog.findViewById<EditText>(R.id.categoryName)!!.text.toString())
@@ -176,12 +176,14 @@ class Features080Test {
                 editDialog.findViewById<View>(R.id.categoryError)!!.visibility == View.VISIBLE }
             assertEquals(editDialog.findViewById<TextView>(R.id.categoryError)!!.text.toString(),
                 CategoryPriority.OCCASIONAL, runBlocking { repository.categoryList().single { it.name == "日用" }.priority })
-            assertTrue(texts(root).any { it.text.toString() == "日用" })
+            assertTrue((root as androidx.recyclerview.widget.RecyclerView).adapter.let {
+                (it as CategoryManageAdapter).positionOfCategory("日用") >= 0
+            })
             fun requestDelete(): AlertDialog {
                 row("正餐").findViewById<View>(R.id.editIcon).performClick()
                 val list = findList(shadowOf(RuntimeEnvironment.getApplication()).latestPopupWindow.contentView)!!
                 val items = (0 until list.adapter.count).map { list.adapter.getItem(it) as MenuItem }
-                assertEquals(listOf("上移", "下移", "删除分类"), items.map { it.title.toString() })
+                assertEquals(listOf("删除分类"), items.map { it.title.toString() })
                 val index = items.indexOfFirst { it.title == "删除分类" }
                 list.performItemClick(list.adapter.getView(index, null, list), index, index.toLong())
                 await { (ShadowDialog.getLatestDialog() as? AlertDialog)?.let { it.isShowing && it.getButton(AlertDialog.BUTTON_POSITIVE)?.text == "确认删除" } == true }
