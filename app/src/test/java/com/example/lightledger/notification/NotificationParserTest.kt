@@ -111,6 +111,21 @@ class NotificationParserTest {
         assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", "你有一笔支出，点击领取积分"))
     }
 
+    @Test fun alipaySingleExpenseIgnoresPromotionalCurrencyAmount() {
+        listOf(
+            "你有一笔23.40元的支出，点击领取3元流量红包。使用花呗支付，确认收货的订单请及时还款。",
+            "你有一笔23.40元的支出，另送3元红包。使用花呗支付。",
+            "你有一笔23.40元的支出，点击领取¥3元红包。使用花呗支付。",
+        ).forEach { text ->
+            val result = NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", text)
+            assertEquals(text, 2340L, result?.amountCents)
+            assertEquals(text, TransactionType.EXPENSE, result?.type)
+        }
+        assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", "点击领取3元流量红包，查看详情"))
+        assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", "你有一笔交易，点此查看详情"))
+        assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", "你有一笔23.40元的支出，另有24.40元的支出"))
+    }
+
     @Test fun genericPromotionWithoutPaymentOutcomeIsIgnored() {
         assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "服务通知", "领取消费券 ¥8.80"))
         assertNull(NotificationParserRegistry.parse("com.tencent.mm", "服务通知", "满减优惠 ¥8.80"))

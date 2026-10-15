@@ -7,7 +7,9 @@ object AmountExtractor {
     private val amountPattern = Regex("(?:[¥￥]\\s*[0-9][0-9,]*(?:\\.[0-9]{1,2})?(?![0-9.])|(?<![0-9.])[0-9][0-9,]*(?:\\.[0-9]{1,2})?\\s*元)")
     private val nonAmountCharacter = Regex("[^0-9.]")
     private val highKeywords = listOf("实付金额", "付款金额", "支付金额", "交易金额", "退款金额", "收款金额", "实付", "付款", "支付", "退款", "收款")
-    private val lowKeywords = listOf("原价", "优惠", "红包", "余额", "累计", "立减", "折扣")
+    private val lowKeywords = listOf("原价", "优惠", "红包", "余额", "累计", "立减", "折扣", "领取")
+    // An offer may put its currency amount before the word that identifies it.
+    private val promotionSuffix = Regex("^\\s*(?:元\\s*)?(?:流量红包|红包|优惠券|消费券|积分)")
     private data class Candidate(val cents: Long, val priority: Int)
 
     fun extract(text: String): Long? {
@@ -19,7 +21,9 @@ object AmountExtractor {
             val prefix = text.substring(maxOf(lineStart, match.range.first - 30), match.range.first)
             val high = highKeywords.maxOfOrNull(prefix::lastIndexOf) ?: -1
             val low = lowKeywords.maxOfOrNull(prefix::lastIndexOf) ?: -1
+            val suffix = text.substring(match.range.last + 1, minOf(text.length, match.range.last + 20))
             Candidate(cents, when {
+                promotionSuffix.containsMatchIn(suffix) -> -1
                 high > low -> 1
                 low >= 0 -> -1
                 else -> 0
