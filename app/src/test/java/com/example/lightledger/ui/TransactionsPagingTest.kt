@@ -1,6 +1,7 @@
 package com.example.lightledger.ui
 
 import android.os.Looper
+import android.content.DialogInterface
 import android.view.View
 import android.view.ViewGroup
 import android.view.MenuItem
@@ -8,6 +9,8 @@ import android.widget.FrameLayout
 import android.widget.ListView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.appcompat.app.AlertDialog
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
@@ -21,6 +24,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowDialog
 import java.time.Duration
 
 /** Exercises the real fragment, asynchronous Room reads, scrolling, and selection together. */
@@ -86,9 +90,26 @@ class TransactionsPagingTest {
             adapter.onBindViewHolder(last, 206)
             assertFalse(last.binding.selectionCheck.isChecked)
 
+            val second = adapter.onCreateViewHolder(list, 0)
+            adapter.onBindViewHolder(second, 150)
+            second.binding.root.performClick()
+            assertEquals("已选 2 笔", frame.findViewById<TextView>(R.id.selectionCount).text.toString())
+            val manager = list.layoutManager as LinearLayoutManager
+            val positionBeforeExit = manager.findFirstVisibleItemPosition()
+            activity.onBackPressedDispatcher.onBackPressed()
+            val backDialog = ShadowDialog.getLatestDialog() as AlertDialog
+            assertTrue(backDialog.isShowing)
+            assertTrue(backDialog.findViewById<TextView>(android.R.id.message)!!.text.contains("已选 2 笔"))
+            backDialog.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+            assertEquals("已选 2 笔", frame.findViewById<TextView>(R.id.selectionCount).text.toString())
+            assertEquals(positionBeforeExit, manager.findFirstVisibleItemPosition())
+
             frame.findViewById<View>(R.id.cancelSelection).performClick()
-            awaitCount(100)
-            assertTrue(frame.findViewById<SwipeRefreshLayout>(R.id.refreshBills).isEnabled)
+            val exitDialog = ShadowDialog.getLatestDialog() as AlertDialog
+            exitDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+            await { layout(); frame.findViewById<SwipeRefreshLayout>(R.id.refreshBills).isEnabled }
+            assertEquals(207, adapter.itemCount)
+            assertEquals(positionBeforeExit, manager.findFirstVisibleItemPosition())
             moreAction(R.id.action_pending)
             awaitCount(7)
             assertEquals((7L downTo 1L).toList(), adapter.currentList.map { it.transaction.id })

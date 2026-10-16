@@ -6,6 +6,7 @@ import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -40,6 +41,13 @@ class TransactionEditorActivity : LedgerActivity() {
     private val categoryChips = mutableMapOf<Long, Chip>()
     private val paymentChips = mutableMapOf<PaymentMethod, Chip>()
     private val selectedTime = Calendar.getInstance()
+    private data class EditorDraft(
+        val amount: String, val type: TransactionType, val categoryId: Long?,
+        val paymentMethod: PaymentMethod, val merchant: String, val note: String,
+        val timestamp: Long, val tagIds: Set<Long>, val refundOfId: Long?,
+        val rememberMerchant: Boolean,
+    )
+    private var initialDraft: EditorDraft? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,7 +66,10 @@ class TransactionEditorActivity : LedgerActivity() {
         EditorChoiceRows.bindCategoryGrid(binding.categoryChips)
         EditorChoiceRows.bindCategoryGrid(binding.occasionalCategoryChips)
         EditorChoiceRows.bindPayments(binding.paymentMethodChips)
-        binding.goBack.setOnClickListener { finish() }
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() = confirmLeave()
+        })
+        binding.goBack.setOnClickListener { confirmLeave() }
         binding.expandCategories.setOnClickListener {
             showOccasional = !showOccasional
             updateOccasionalVisibility()
@@ -124,7 +135,29 @@ class TransactionEditorActivity : LedgerActivity() {
                 if (!paymentChosenManually && detected != null) selectPaymentMethod(detected)
             }
             binding.save.isEnabled = true
+            initialDraft = currentDraft()
         }
+    }
+
+    private fun currentDraft() = EditorDraft(
+        binding.amount.text?.toString().orEmpty(), selectedType, selectedCategoryId,
+        selectedPaymentMethod, binding.merchant.text?.toString().orEmpty(),
+        binding.note.text?.toString().orEmpty(), selectedTime.timeInMillis,
+        selectedTagIds.toSet(), refundOfId, binding.rememberMerchant.isChecked,
+    )
+
+    private fun confirmLeave() {
+        if (initialDraft == null || initialDraft == currentDraft()) { finish(); return }
+        if (!binding.save.isEnabled) {
+            Toast.makeText(this, "正在保存，请稍候", Toast.LENGTH_SHORT).show()
+            return
+        }
+        AlertDialog.Builder(this).setTitle("账单已修改")
+            .setMessage("有未保存的修改，是否保存？")
+            .setNegativeButton("不保存") { _, _ -> finish() }
+            .setNeutralButton("继续编辑", null)
+            .setPositiveButton("保存") { _, _ -> save() }
+            .show()
     }
 
     private fun showScreenshotDraft() {

@@ -58,6 +58,7 @@ class TransactionsFragment : Fragment() {
     private val pageSize = 100
     private data class ScrollAnchor(val transactionId: Long, val position: Int, val top: Int)
     private var pendingScrollAnchor: ScrollAnchor? = null
+    private var returnScrollAnchor: ScrollAnchor? = null
     private val selectedIds = linkedSetOf<Long>()
     private var selectionMode = false
     private var deleting = false
@@ -92,12 +93,15 @@ class TransactionsFragment : Fragment() {
             if (selectionMode) {
                 if (!selectedIds.add(id)) selectedIds.remove(id)
                 updateSelectionUi()
-            } else startActivity(Intent(requireContext(), TransactionEditorActivity::class.java).putExtra("id", id))
+            } else {
+                returnScrollAnchor = currentScrollAnchor()
+                startActivity(Intent(requireContext(), TransactionEditorActivity::class.java).putExtra("id", id))
+            }
         }
         selectionBack = object : OnBackPressedCallback(selectionMode) {
-            override fun handleOnBackPressed() { if (!deleting) endSelection() }
+            override fun handleOnBackPressed() { if (!deleting) requestEndSelection() }
         }.also { requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, it) }
-        b.cancelSelection.setOnClickListener { endSelection() }
+        b.cancelSelection.setOnClickListener { requestEndSelection() }
         b.selectLoaded.setOnClickListener {
             val loaded = rows.map { it.transaction.id }
             if (loaded.isNotEmpty() && loaded.all { it in selectedIds }) selectedIds.removeAll(loaded.toSet()) else selectedIds.addAll(loaded)
@@ -162,12 +166,21 @@ class TransactionsFragment : Fragment() {
         adapter?.setSelection(selectedIds, selectionMode)
     }
 
+    private fun requestEndSelection() {
+        if (deleting) return
+        if (selectedIds.isEmpty()) { endSelection(); return }
+        AlertDialog.Builder(requireContext()).setTitle("退出批量选择？")
+            .setMessage("已选 ${selectedIds.size} 笔账单，退出后会取消选择，不会删除账单。")
+            .setNegativeButton("继续选择", null)
+            .setPositiveButton("退出选择") { _, _ -> endSelection() }
+            .show()
+    }
+
     private fun endSelection() {
         if (deleting) return
         selectedIds.clear()
         selectionMode = false
         updateSelectionUi()
-        refresh()
     }
 
     private fun confirmBatchDelete() {
@@ -177,6 +190,7 @@ class TransactionsFragment : Fragment() {
             .setMessage("删除后无法撤销，请核对已选账单。")
             .setNegativeButton("取消", null)
             .setPositiveButton("删除") { _, _ ->
+                val anchor = survivingScrollAnchor(targets.toSet())
                 deleting = true
                 updateSelectionUi()
                 viewLifecycleOwner.lifecycleScope.launch {
@@ -185,6 +199,7 @@ class TransactionsFragment : Fragment() {
                         Toast.makeText(requireContext(), "已删除 $count 笔账单", Toast.LENGTH_SHORT).show()
                         deleting = false
                         endSelection()
+                        refresh(preservePosition = anchor != null, anchorOverride = anchor)
                     } catch (e: CancellationException) {
                         deleting = false
                         throw e
@@ -205,8 +220,18 @@ class TransactionsFragment : Fragment() {
         return ScrollAnchor(row.transaction.id, position, manager.findViewByPosition(position)?.top ?: 0)
     }
 
-    private fun refresh(preservePosition: Boolean = false) {
-        val anchor = if (preservePosition) currentScrollAnchor() ?: pendingScrollAnchor else null
+    private fun survivingScrollAnchor(deletedIds: Set<Long>): ScrollAnchor? {
+        val current = currentScrollAnchor() ?: return null
+        val listed = adapter?.currentList.orEmpty()
+        val position = (current.position until listed.size).firstOrNull { listed[it].transaction.id !in deletedIds }
+            ?: (current.position - 1 downTo 0).firstOrNull { listed[it].transaction.id !in deletedIds }
+            ?: return null
+        return ScrollAnchor(listed[position].transaction.id, position, current.top)
+    }
+
+    private fun refresh(preservePosition: Boolean = false, anchorOverride: ScrollAnchor? = null) {
+        val anchor = if (preservePosition) anchorOverride ?: returnScrollAnchor ?: currentScrollAnchor() ?: pendingScrollAnchor else null
+        returnScrollAnchor = null
         pendingScrollAnchor = anchor
         queryGeneration++
         queryJob?.cancel()
@@ -248,7 +273,8 @@ class TransactionsFragment : Fragment() {
                     if (generation != queryGeneration || binding !== b) return@launch
                     rows.addAll(page)
                     hasMore = page.size == pageSize
-                } while (anchor != null && hasMore && rows.none { it.transaction.id == anchor.transactionId })
+                } while (anchor != null && hasMore && rows.none { it.transaction.id == anchor.transactionId } &&
+                    rows.size <= anchor.position + pageSize)
                 adapter?.submitList(rows.toList()) {
                     if (generation == queryGeneration && binding === b) {
                         if (anchor != null && rows.isNotEmpty()) {
@@ -354,6 +380,7 @@ class TransactionsFragment : Fragment() {
         binding?.transactionList?.adapter = null
         adapter = null
         pendingScrollAnchor = null
+        returnScrollAnchor = null
         selectionBack = null
         binding = null
         super.onDestroyView()
