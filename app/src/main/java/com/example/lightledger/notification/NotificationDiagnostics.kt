@@ -1,6 +1,8 @@
 package com.example.lightledger.notification
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -12,26 +14,30 @@ object NotificationDiagnostics {
     private const val TIME = "last_time"
     private const val SOURCE = "last_source"
     private const val RESULT = "last_result"
+    private const val HISTORY = "recent_results"
+    private const val HISTORY_LIMIT = 24
 
     fun lifecycle(context: Context, event: String) {
         context.getSharedPreferences(PREFS, 0).edit()
             .putString("listener_event", event).putLong("listener_time", System.currentTimeMillis()).apply()
     }
 
-    fun record(context: Context, packageName: String, result: String, times: ProcessingTimes? = null) {
+    @Synchronized fun record(context: Context, packageName: String, result: String, times: ProcessingTimes? = null) {
         val source = when (packageName) {
             "com.tencent.mm" -> "微信"
             "com.eg.android.AlipayGphone" -> "支付宝"
             else -> return
         }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putLong(TIME, System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+            .putLong(TIME, now)
             .putString(SOURCE, source)
             .putString(RESULT, result)
-            .putLong("${source}_time", System.currentTimeMillis())
+            .putLong("${source}_time", now)
             .putString("${source}_result", result)
             .apply {
-                if (result == "已自动记账") putLong("${source}_saved", System.currentTimeMillis())
+                if (result == "已自动记账" || result == "已恢复断联前收到的付款") putLong("${source}_saved", now)
                 if (times != null) {
                     putLong("${source}_total_ms", times.totalMs)
                     putLong("${source}_parse_ms", times.parseMs)
@@ -44,7 +50,17 @@ object NotificationDiagnostics {
                     remove("${source}_prompt_ms")
                 }
             }
-            .apply()
+        if (result != "已收到，正在识别") {
+            // Keep outcomes, not notification text or amounts, so a later chat message cannot
+            // erase the evidence of how an earlier payment notification was handled.
+            val previous = runCatching { JSONArray(prefs.getString(HISTORY, "[]")) }.getOrDefault(JSONArray())
+            val recent = JSONArray()
+            val start = (previous.length() - HISTORY_LIMIT + 1).coerceAtLeast(0)
+            for (index in start until previous.length()) recent.put(previous.optJSONObject(index))
+            recent.put(JSONObject().put("time", now).put("source", source).put("result", result))
+            editor.putString(HISTORY, recent.toString())
+        }
+        editor.apply()
     }
 
     fun summary(context: Context): String {
@@ -66,6 +82,7 @@ object NotificationDiagnostics {
             ListenerProtectionService.isRunning -> "后台保护：运行中"
             else -> "后台保护：当前未运行"
         }
+        val recent = runCatching { JSONArray(prefs.getString(HISTORY, "[]")) }.getOrDefault(JSONArray())
         return state + "\n" + protection + event + "\n\n" + ProcessExitDiagnostics.summary(context) + "\n\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->
             val time = prefs.getLong("${source}_time", 0L)
             if (time == 0L) "$source：尚未收到通知" else {
@@ -73,9 +90,13 @@ object NotificationDiagnostics {
                 val timing = prefs.getLong("${source}_total_ms", -1L).takeIf { it >= 0L }?.let { total ->
                     "\n本次处理 ${total}ms（识别 ${prefs.getLong("${source}_parse_ms", 0)}ms，入库 ${prefs.getLong("${source}_save_ms", 0)}ms，提示 ${prefs.getLong("${source}_prompt_ms", 0)}ms）"
                 }.orEmpty()
+                val history = (0 until recent.length()).mapNotNull { recent.optJSONObject(it) }
+                    .filter { it.optString("source") == source }.takeLast(6).asReversed()
+                    .joinToString("\n") { "${format.format(Date(it.optLong("time")))} · ${it.optString("result")}" }
                 "$source · 最近处理 ${format.format(Date(time))}\n${prefs.getString("${source}_result", "未知")}" +
                     timing +
-                    if (saved > 0) "\n最近记账：${format.format(Date(saved))}" else "\n尚无成功记录"
+                    (if (saved > 0) "\n最近记账：${format.format(Date(saved))}" else "\n尚无成功记录") +
+                    (if (history.isNotEmpty()) "\n最近处理记录：\n$history" else "")
             }
         }
     }

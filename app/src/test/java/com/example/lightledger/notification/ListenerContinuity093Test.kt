@@ -12,6 +12,9 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
 import com.example.lightledger.data.LedgerDatabase
+import com.example.lightledger.data.LedgerTransaction
+import com.example.lightledger.data.PaymentMethod
+import com.example.lightledger.data.TransactionSource
 import com.example.lightledger.data.TransactionType
 import com.example.lightledger.ui.MainActivity
 import kotlinx.coroutines.Job
@@ -51,6 +54,31 @@ class ListenerContinuity093Test {
             .forEach { it.isAccessible = true; it.set(null, null) }
         app.getSharedPreferences("permission_guide", 0).edit().putBoolean("shown", true).apply()
         app.getSharedPreferences("listener_recovery", 0).edit().clear().commit()
+        app.getSharedPreferences("pending_payment_notifications", 0).edit().clear().commit()
+    }
+
+    @Test fun parsedPaymentHandedOffBeforeProcessExitIsSavedAfterReconnectOnlyOnce() {
+        access(true)
+        val key = "test-pending-wechat-payment"
+        val record = LedgerTransaction(amountCents = 1234, type = TransactionType.EXPENSE,
+            merchant = "虚构商店", paymentMethod = PaymentMethod.WECHAT, platform = "WeChat",
+            timestamp = System.currentTimeMillis(), source = TransactionSource.NOTIFICATION,
+            notificationKey = key)
+        assertTrue(PendingNotificationStore.enqueue(app, record))
+        assertEquals(listOf(key), PendingNotificationStore.pending(app).mapNotNull { it.notificationKey })
+        val controller = Robolectric.buildService(PaymentNotificationService::class.java).create()
+        try {
+            controller.get().onListenerConnected()
+            drainWrites()
+            val saved = runBlocking { app.repository.snapshot().transactions.filter { it.notificationKey == key } }
+            assertEquals(1, saved.size)
+            assertEquals(1234L, saved.single().amountCents)
+            assertTrue(PendingNotificationStore.pending(app).isEmpty())
+            controller.get().onListenerDisconnected()
+            controller.get().onListenerConnected()
+            drainWrites()
+            assertEquals(1, runBlocking { app.repository.snapshot().transactions.count { it.notificationKey == key } })
+        } finally { controller.destroy() }
     }
     @After fun close() {
         access(false); ListenerProtection.disable(app); ListenerRecovery.check(app)

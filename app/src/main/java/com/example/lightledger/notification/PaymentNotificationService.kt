@@ -30,6 +30,18 @@ class PaymentNotificationService : NotificationListenerService() {
         current = this
         NotificationDiagnostics.lifecycle(this, "监听已连接")
         ListenerRecovery.check(this)
+        val app = application as LedgerApp
+        app.notificationScope.launch {
+            PendingNotificationStore.pending(app).forEach { record ->
+                runCatching {
+                    val saved = saveRecord(app, record)
+                    if (saved != null) NotificationDiagnostics.record(app,
+                        if (record.paymentMethod == com.example.lightledger.data.PaymentMethod.WECHAT)
+                            "com.tencent.mm" else "com.eg.android.AlipayGphone",
+                        "已恢复断联前收到的付款")
+                }.onFailure { Log.w("PaymentNotification", "Could not replay a pending payment", it) }
+            }
+        }
         runCatching {
             activeNotifications.orEmpty()
                 .filter { it.packageName == "com.tencent.mm" || it.packageName == "com.eg.android.AlipayGphone" }
@@ -93,13 +105,43 @@ class PaymentNotificationService : NotificationListenerService() {
                 return
             }
         }
-        // Copy the small immutable inputs before leaving Android's listener callback.
+        // Parse and durably hand off the trusted payment before leaving the callback.
+        // The listener process can be killed before its queued database work starts.
         val timestamp = sbn.postTime.takeIf { it > 0 } ?: System.currentTimeMillis()
         val keyInput = "${sbn.packageName}|${sbn.key}|${sbn.postTime}"
+        val parsed = runCatching { NotificationParserRegistry.parse(sourcePackage, title, text) }
+            .getOrElse {
+                outcome("通知识别失败")
+                Log.w("PaymentNotification", "Could not parse notification", it)
+                return
+            }
+        val parsedAt = SystemClock.elapsedRealtimeNanos()
+        if (parsed == null) {
+            outcome(PaymentTextParser.rejectionReason(title, text))
+            return
+        }
+        DetectedPaymentMethod.remember(context, parsed.paymentMethod, timestamp)
+        val key = MessageDigest.getInstance("SHA-256").digest(keyInput.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        val status = if (parsed.type == TransactionType.REFUND) ClassificationStatus.NEED_CONFIRM
+            else ClassificationStatus.UNCLASSIFIED
+        val record = LedgerTransaction(
+            amountCents = parsed.amountCents,
+            type = parsed.type,
+            merchant = parsed.merchant,
+            paymentMethod = parsed.paymentMethod,
+            platform = parsed.platform,
+            timestamp = timestamp,
+            source = TransactionSource.NOTIFICATION,
+            classificationStatus = status,
+            notificationKey = key,
+        )
+        if (!runCatching { PendingNotificationStore.enqueue(context, record) }.getOrDefault(false)) {
+            NotificationDiagnostics.record(context, sourcePackage, "待写入保护未保存，正在直接记账")
+        }
         val app = application as LedgerApp
         app.notificationScope.launch {
-            var parsedAt = receivedAt
-            var savedAt = receivedAt
+            var savedAt = parsedAt
             fun elapsedMs(start: Long, end: Long) = ((end - start) / 1_000_000L).coerceAtLeast(0L)
             fun finish(result: String, promptedAt: Long = SystemClock.elapsedRealtimeNanos()) {
                 NotificationDiagnostics.record(context, sourcePackage, result,
@@ -111,40 +153,11 @@ class PaymentNotificationService : NotificationListenerService() {
                     ))
             }
             try {
-                val parsed = NotificationParserRegistry.parse(sourcePackage, title, text)
-                parsedAt = SystemClock.elapsedRealtimeNanos()
-                if (parsed == null) {
-                    savedAt = parsedAt
-                    finish(PaymentTextParser.rejectionReason(title, text))
-                    return@launch
-                }
-                DetectedPaymentMethod.remember(context, parsed.paymentMethod, timestamp)
-                val key = MessageDigest.getInstance("SHA-256").digest(keyInput.toByteArray(Charsets.UTF_8))
-                    .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-                val status = if (parsed.type == TransactionType.REFUND) ClassificationStatus.NEED_CONFIRM
-                    else ClassificationStatus.UNCLASSIFIED
-                val record = LedgerTransaction(
-                    amountCents = parsed.amountCents,
-                    type = parsed.type,
-                    merchant = parsed.merchant,
-                    paymentMethod = parsed.paymentMethod,
-                    platform = parsed.platform,
-                    timestamp = timestamp,
-                    source = TransactionSource.NOTIFICATION,
-                    classificationStatus = status,
-                    notificationKey = key,
-                )
-                val repository = app.repository
-                val saved = repository.saveNotificationRecord(record)
+                val saved = saveRecord(app, record)
                 savedAt = SystemClock.elapsedRealtimeNanos()
                 if (saved == null) {
                     finish("重复通知，已跳过")
                     return@launch
-                }
-                if (saved.type == TransactionType.EXPENSE && saved.amountCents > 0 &&
-                    saved.classificationStatus != ClassificationStatus.CLASSIFIED) {
-                    runCatching { QuickClassificationManager.show(app, saved.id, saved.amountCents, repository.categoryList()) }
-                        .onFailure { Log.w("PaymentNotification", "Could not show quick classification", it) }
                 }
                 finish("已自动记账")
             }
@@ -155,6 +168,18 @@ class PaymentNotificationService : NotificationListenerService() {
                 Log.w("PaymentNotification", "Could not save notification", e)
             }
         }
+    }
+
+    private suspend fun saveRecord(app: LedgerApp, record: LedgerTransaction): LedgerTransaction? {
+        val repository = app.repository
+        val saved = repository.saveNotificationRecord(record)
+        record.notificationKey?.let { PendingNotificationStore.remove(app, it) }
+        if (saved?.type == TransactionType.EXPENSE && saved.amountCents > 0 &&
+            saved.classificationStatus != ClassificationStatus.CLASSIFIED) {
+            runCatching { QuickClassificationManager.show(app, saved.id, saved.amountCents, repository.categoryList()) }
+                .onFailure { Log.w("PaymentNotification", "Could not show quick classification", it) }
+        }
+        return saved
     }
 
     override fun onDestroy() {
