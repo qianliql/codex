@@ -1,10 +1,10 @@
 # 轻账本 · LightLedger
 
-个人使用的Android记账软件，支持手工记账、微信/支付宝通知读取、本地截图识别和收支统计。账单、通知和截图在本机处理；联网仅用于检查和下载公开版本。当前版本 **1.0.5**，最低Android8.0（API26）。
+个人使用的Android记账软件，支持手工记账、微信/支付宝通知读取、本地截图识别和收支统计。账单、通知和截图在本机处理；联网仅用于检查和下载公开版本。当前版本 **1.0.6**，最低Android8.0（API26）。
 
 ## 下载与安装
 
-首次安装可在[版本下载页](https://github.com/qianliql/codex/releases/latest)或[Gitee安装包镜像](https://gitee.com/qianlihuo/money/releases)下载`LightLedger-1.0.5-debug.apk`，传到手机后点开安装，无需连接电脑。文件名保留 `debug` 是为了兼容旧版更新器，安装包实际使用压缩后的 release 构建并沿用原签名。已安装0.11.0及后续版本时，可从“我的 → 设置 → 检查更新”在应用内下载新版，随后按系统提示允许轻账本安装并确认升级。应用打开后也会定期检查新版本；下载和安装由用户决定。
+首次安装可在[版本下载页](https://github.com/qianliql/codex/releases/latest)或[Gitee安装包镜像](https://gitee.com/qianlihuo/money/releases)下载`LightLedger-1.0.6-debug.apk`，传到手机后点开安装，无需连接电脑。文件名保留 `debug` 是为了兼容旧版更新器，安装包实际使用压缩后的 release 构建并沿用原签名。已安装0.11.0及后续版本时，可从“我的 → 设置 → 检查更新”在应用内下载新版，随后按系统提示允许轻账本安装并确认升级。应用打开后也会定期检查新版本；下载和安装由用户决定。
 
 0.4.1及之后的原交付使用相同签名，可覆盖同签名版本。原电脑0.4.0签名不同；如果系统提示签名不一致，请先导出并验证本地备份，再处理迁移，避免清空账单。
 
@@ -33,9 +33,9 @@ App不需要账号。更新功能使用INTERNET和REQUEST_INSTALL_PACKAGES权限
 
 ## 更新报告
 
-[更新总览](CHANGELOG.md) · [1.0.5详细报告](docs/updates/1.0.5.md) · [以后每次更新的报告模板](docs/updates/TEMPLATE.md)
+[更新总览](CHANGELOG.md) · [1.0.6详细报告](docs/updates/1.0.6.md) · [以后每次更新的报告模板](docs/updates/TEMPLATE.md)
 
-已整理0.1.0至1.0.5共31个版本的变化、使用方法、验证范围及限制。后续更新同步维护报告，规则见[AGENTS.md](AGENTS.md)。
+已整理0.1.0至1.0.6共32个版本的变化、使用方法、验证范围及限制。后续更新同步维护报告，规则见[AGENTS.md](AGENTS.md)。
 
 ## 开发
 
@@ -51,4 +51,4 @@ macOS/Linux使用`./gradlew assembleDebug testDebugUnitTest`。通过AndroidStud
 
 ## 验证范围
 
-1.0.5构建、通知暂存与真机观察范围见[验证说明](docs/verification.md)与[本版报告](docs/updates/1.0.5.md)。ColorOS16曾有系统清理应用的记录，USB中断期间不能判定监听是否断开；USB供电观察不代表电池续航或更长时间闲置。
+1.0.6构建与界面验证范围见[验证说明](docs/verification.md)与[本版报告](docs/updates/1.0.6.md)。ColorOS16曾有系统清理应用的记录，USB中断期间不能判定监听是否断开；USB供电观察不代表电池续航或更长时间闲置。

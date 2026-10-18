@@ -1,6 +1,11 @@
 # 验证说明
 
-## 当前版本1.0.5
+## 当前版本1.0.6
+
+- `assembleDebug`、`assembleRelease` 成功；6 项纯逻辑单元检查通过。正式 APK 22,280,912 字节，SHA-256 `2ac2116ad633948317db98d27bc1f52591500d9eca822fa97142e6afe4eec270`，versionCode32，沿用原签名。
+- 本地 Robolectric 布局模拟受到 Android 镜像和原生渲染库文件访问限制，未完成模拟截图验收。OPPO PFEM10 / ColorOS 16 已从 1.0.5 同签名覆盖安装 1.0.6，检查了首页、账单、统计和新增账单，通知读取授权仍在；未进行真实付款测试。详见[本版报告](updates/1.0.6.md)。
+
+## 上一版本1.0.5
 
 - `assembleDebug`、`testDebugUnitTest`、`assembleRelease` 成功，39 组 280 项检查，0 失败、0 错误、0 跳过。正式 APK 22,280,564 字节，SHA-256 `2a1db5364f2d9dd9aa43237c0c76458608c068ec4b74fd9d47ddf4dac6cccc42`，沿用原签名。
 - OPPO PFEM10 / ColorOS 16 上旧版监听进程曾在漏记付款的时段被系统结束，旧通知已消失，无法断定它是否到达过回调。1.0.5 已从 1.0.4 同签名覆盖安装，系统显示 versionCode31，通知监听仍绑定。暂存及重连仅做模拟检查，未进行本版真实支付；详见[本版报告](updates/1.0.5.md)。

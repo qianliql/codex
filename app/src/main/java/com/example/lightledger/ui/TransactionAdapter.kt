@@ -43,6 +43,7 @@ class TransactionAdapter(private val onLongClick: ((Long) -> Unit)? = null, priv
             if (transaction.requiresAmountConfirmation() && transaction.amountCents > 0) " · 金额待确认" else ""
         holder.binding.timestamp.text = java.text.SimpleDateFormat("yyyy.MM.dd HH:mm", java.util.Locale.CHINA).format(java.util.Date(transaction.timestamp))
         CategoryIcons.apply(holder.binding.categoryIcon, row.categoryName ?: "未分类", row.categoryIconKey)
+        holder.binding.categoryIcon.visibility = if (selecting) android.view.View.GONE else android.view.View.VISIBLE
         holder.binding.selectionCheck.visibility = if (selecting) android.view.View.VISIBLE else android.view.View.GONE
         holder.binding.selectionCheck.isChecked = transaction.id in selectedIds
         holder.binding.root.isCheckable = selecting

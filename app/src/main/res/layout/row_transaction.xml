@@ -1,15 +1,89 @@
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android" style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
-            <ImageView android:id="@+id/categoryIcon" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_badge" android:padding="9dp" android:src="@drawable/ic_other" android:importantForAccessibility="no"/>
-            <TextView android:id="@+id/title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="2" android:textColor="?attr/colorOnSurface" android:textSize="16sp" android:fontFamily="sans-serif-medium"/>
-            <CheckBox android:id="@+id/selectionCheck" android:layout_width="48dp" android:layout_height="48dp" android:clickable="false" android:focusable="false" android:importantForAccessibility="no" android:visibility="gone"/>
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/LedgerCard"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardCornerRadius="16dp">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp">
+        <ImageView
+            android:id="@+id/categoryIcon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/bg_badge"
+            android:importantForAccessibility="no"
+            android:padding="9dp"
+            android:src="@drawable/ic_other" />
+        <CheckBox
+            android:id="@+id/selectionCheck"
+            android:layout_width="40dp"
+            android:layout_height="48dp"
+            android:clickable="false"
+            android:focusable="false"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="2"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp" />
+            <TextView
+                android:id="@+id/subtitle"
+                style="@style/LedgerCaption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/notePreview"
+                style="@style/LedgerCaption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textSize="12sp"
+                android:visibility="gone" />
+            <TextView
+                android:id="@+id/timestamp"
+                style="@style/LedgerCaption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:maxLines="1"
+                android:textSize="11sp" />
         </LinearLayout>
-        <TextView android:id="@+id/subtitle" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"/>
-        <TextView android:id="@+id/notePreview" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:maxLines="2" android:ellipsize="end" android:visibility="gone" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:gravity="center_vertical">
-            <TextView android:id="@+id/timestamp" style="@style/LedgerCaption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textSize="11sp"/>
-            <TextView android:id="@+id/amount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:textColor="?attr/colorOnSurface" android:textSize="20sp" android:fontFamily="sans-serif-medium"/>
-        </LinearLayout>
+        <TextView
+            android:id="@+id/amount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="sans-serif-medium"
+            android:fontFeatureSettings="tnum"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="19sp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
