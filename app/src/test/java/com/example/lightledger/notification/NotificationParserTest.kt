@@ -126,6 +126,22 @@ class NotificationParserTest {
         assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒", "你有一笔23.40元的支出，另有24.40元的支出"))
     }
 
+    @Test fun alipaySingleExpenseIgnoresMaximumOfferAndMinimumSpend() {
+        val result = NotificationParserRegistry.parse(
+            "com.eg.android.AlipayGphone", "交易提醒",
+            "你有一笔18.42元的支出，领最高1.6元满4元返现。使用花呗支付。",
+        )
+        assertEquals(1842L, result?.amountCents)
+        assertEquals(TransactionType.EXPENSE, result?.type)
+        assertNull(NotificationParserRegistry.parse(
+            "com.eg.android.AlipayGphone", "交易提醒",
+            "你有一笔18.42元的支出，另有19.42元的支出，领最高1.6元满4元返现。",
+        ))
+        assertNull(NotificationParserRegistry.parse(
+            "com.eg.android.AlipayGphone", "交易提醒", "领最高1.6元满4元返现，点击查看。",
+        ))
+    }
+
     @Test fun genericPromotionWithoutPaymentOutcomeIsIgnored() {
         assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "服务通知", "领取消费券 ¥8.80"))
         assertNull(NotificationParserRegistry.parse("com.tencent.mm", "服务通知", "满减优惠 ¥8.80"))
