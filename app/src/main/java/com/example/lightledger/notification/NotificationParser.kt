@@ -63,6 +63,8 @@ internal object PaymentTextParser {
     // Alipay's transaction reminder may describe a completed expense before offering points.
     // Require both the single-expense wording and a currency-marked amount.
     private val singleExpense = Regex("(?:你有)?一笔\\s*(?:[¥￥]\\s*[0-9][0-9,]*(?:\\.[0-9]{1,2})?|[0-9][0-9,]*(?:\\.[0-9]{1,2})?\\s*元)\\s*的支出")
+    private val secondPayment = Regex("(?:另有|又有|再有|第二笔|第[二三\\d]+笔)\\s*(?:[¥￥]\\s*)?[0-9]")
+    private val conditionalPromotion = Regex("(?:支付|付款)成功(?:后)?(?:可|即|能)")
 
     fun hasOfficialWeChatPrefix(text: String) = officialWeChatPrefix.containsMatchIn(text)
 
@@ -72,9 +74,23 @@ internal object PaymentTextParser {
 
     private fun amount(text: String) = AmountExtractor.extract(normalizedAmounts(text))
 
-    fun hasStrongOutcomeWithAmount(text: String): Boolean =
-        (strongOutcomes.any(text::contains) || singleExpense.containsMatchIn(text)) &&
-            amount(text) != null && !invalidOutcome.containsMatchIn(text)
+    private fun leadingPaymentAmount(text: String): Long? {
+        val normalized = normalizedAmounts(text)
+        val first = AmountExtractor.firstUnpromoted(normalized) ?: return null
+        if (secondPayment.containsMatchIn(normalized.substring(first.start))) return null
+        val single = singleExpense.find(normalized)
+        if (single != null && single.range.first <= 16 && first.start in single.range) return first.cents
+        val outcome = strongOutcomes.map(normalized::indexOf).filter { it >= 0 }.minOrNull() ?: return null
+        if (conditionalPromotion.find(normalized)?.range?.first == outcome) return null
+        return first.cents.takeIf { outcome <= 24 && outcome <= first.start && first.start - outcome <= 40 }
+    }
+
+    fun hasStrongOutcomeWithAmount(text: String): Boolean {
+        val leading = leadingPaymentAmount(text)
+        return (strongOutcomes.any(text::contains) || singleExpense.containsMatchIn(text)) &&
+            (amount(text) ?: leading) != null && !invalidOutcome.containsMatchIn(text) &&
+            !(conditionalPromotion.containsMatchIn(text) && leading == null && !singleExpense.containsMatchIn(text))
+    }
 
     fun rejectionReason(title: String, text: String): String {
         val combined = "$title\n$text"
@@ -82,7 +98,7 @@ internal object PaymentTextParser {
             reportPattern.containsMatchIn(combined) -> "日报、月报等汇总消息，已跳过"
             invalidOutcome.containsMatchIn(combined) -> "待支付、处理中或失败消息，已跳过"
             promotionPattern.containsMatchIn(combined) && !hasStrongOutcomeWithAmount(text) -> "促销内容未确认单笔交易，已跳过"
-            amount(combined) == null -> "没有可靠的单笔金额（缺少金额或金额冲突），已跳过"
+            (amount(combined) ?: leadingPaymentAmount(text)) == null -> "没有可靠的单笔金额（缺少金额或金额冲突），已跳过"
             else -> "未确认支付来源或交易结果，已跳过"
         }
     }
@@ -93,7 +109,7 @@ internal object PaymentTextParser {
         if (reportPattern.containsMatchIn(combined)) return null
         if (invalidOutcome.containsMatchIn(combined)) return null
         if (promotionPattern.containsMatchIn(combined) && !hasStrongOutcomeWithAmount(text)) return null
-        val amountCents = amount(combined) ?: return null
+        val amountCents = amount(combined) ?: leadingPaymentAmount(text) ?: return null
         val type = when {
             listOf("退款", "退回", "已退").any(combined::contains) -> TransactionType.REFUND
             combined.contains("转账") -> TransactionType.TRANSFER

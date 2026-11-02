@@ -58,6 +58,7 @@ internal object ProcessExitDiagnostics {
             "用户操作、更新或组件变化（系统不能区分最近任务与强行停止）"
             else "用户操作结束（系统不能区分最近任务与强行停止）"
         ApplicationExitInfo.REASON_LOW_MEMORY -> "系统内存不足回收"
+        ApplicationExitInfo.REASON_OTHER -> "系统结束了后台进程（未提供具体原因）"
         ApplicationExitInfo.REASON_CRASH, ApplicationExitInfo.REASON_CRASH_NATIVE -> "应用崩溃"
         ApplicationExitInfo.REASON_ANR -> "应用无响应"
         ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "权限变化"

@@ -11,10 +11,10 @@ object AmountExtractor {
     // An offer may put its currency amount before the word that identifies it.
     private val promotionSuffix = Regex("^\\s*(?:元\\s*)?(?:流量红包|红包|优惠券|消费券|积分)")
     private val promotionPrefix = Regex("(?:领(?:取)?最高|满)\\s*$")
-    private data class Candidate(val cents: Long, val priority: Int)
+    internal data class Candidate(val cents: Long, val priority: Int, val start: Int)
 
-    fun extract(text: String): Long? {
-        val candidates = amountPattern.findAll(text).mapNotNull { match ->
+    private fun candidates(text: String): List<Candidate> =
+        amountPattern.findAll(text).mapNotNull { match ->
             val digits = match.value.replace(nonAmountCharacter, "")
             val cents = try { BigDecimal(digits).movePointRight(2).longValueExact() } catch (_: Exception) { 0L }
             if (cents <= 0) return@mapNotNull null
@@ -29,8 +29,15 @@ object AmountExtractor {
                 high > low -> 1
                 low >= 0 -> -1
                 else -> 0
-            })
+            }, match.range.first)
         }.toList()
+
+    /** A fallback candidate; callers must separately prove that this is a completed payment. */
+    internal fun firstUnpromoted(text: String): Candidate? = candidates(text).firstOrNull()
+        ?.takeIf { it.priority >= 0 }
+
+    fun extract(text: String): Long? {
+        val candidates = candidates(text)
         val high = candidates.filter { it.priority == 1 }.map { it.cents }.distinct()
         if (high.isNotEmpty()) return high.singleOrNull()
         return candidates.filter { it.priority == 0 }.map { it.cents }.distinct().singleOrNull()

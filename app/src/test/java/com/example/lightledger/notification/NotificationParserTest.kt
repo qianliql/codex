@@ -56,6 +56,26 @@ class NotificationParserTest {
         assertNull(result)
     }
 
+    @Test fun completedPaymentAtStartUsesFirstAmountWhenTrailingAmountsConflict() {
+        val wechat = NotificationParserRegistry.parse("com.tencent.mm", "微信支付",
+            "付款成功 ¥31.42，附带 ¥3.50 的权益，参考金额 ¥5.00")
+        assertEquals(3142L, wechat?.amountCents)
+        assertEquals(TransactionType.EXPENSE, wechat?.type)
+        val alipay = NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒",
+            "你有一笔19.76元的支出，附送2.50元权益，满5元可用。")
+        assertEquals(1976L, alipay?.amountCents)
+        assertEquals(TransactionType.EXPENSE, alipay?.type)
+    }
+
+    @Test fun firstAmountFallbackStillRejectsOffersAndExplicitSecondPayments() {
+        assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒",
+            "领取优惠券 ¥5.00，支付成功可得 ¥8.00 奖励"))
+        assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "交易提醒",
+            "你有一笔19.76元的支出，另有20.76元的支出，附送2.50元权益"))
+        assertNull(NotificationParserRegistry.parse("com.tencent.mm", "微信支付",
+            "付款处理中 ¥31.42，附带 ¥3.50 的权益"))
+    }
+
     @Test fun paymentNotificationsWithoutAnAmountAreIgnored() {
         assertNull(NotificationParserRegistry.parse("com.tencent.mm", "微信支付", "付款成功，点击查看详情"))
         assertNull(NotificationParserRegistry.parse("com.eg.android.AlipayGphone", "支付宝交易提醒", "付款成功，点击查看详情"))
