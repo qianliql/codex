@@ -13,6 +13,15 @@ class LedgerRepository(private val dao: LedgerDao) {
     fun categoryTotals(start: Long, end: Long) = dao.categoryTotals(start, end)
     suspend fun categoryList() = dao.categoryList()
     suspend fun transaction(id: Long) = dao.transaction(id)
+    suspend fun transactionsByIds(ids: List<Long>): List<LedgerTransaction> =
+        ids.filter { it > 0 }.distinct().chunked(400).flatMap { dao.transactionsByIds(it) }
+    suspend fun tagIdsForTransactions(ids: List<Long>): List<Long> =
+        ids.filter { it > 0 }.distinct().chunked(400).flatMap { dao.tagIdsForTransactions(it) }.distinct()
+    suspend fun linkedRefundCountForIds(ids: List<Long>): Int =
+        ids.filter { it > 0 }.distinct().chunked(400).sumOf { dao.linkedRefundCountForIds(it) }
+    suspend fun replaceWithAggregate(ids: List<Long>, expected: List<LedgerTransaction>,
+        replacement: LedgerTransaction, tagIds: List<Long>): Long =
+        dao.replaceWithAggregate(ids, expected, replacement, tagIds)
     suspend fun expenseRank(start: Long, end: Long, categoryId: Long, limit: Int, offset: Int) = dao.expenseRank(start, end, categoryId, limit, offset)
     fun expenseRankSummary(start: Long, end: Long, categoryId: Long) = dao.expenseRankSummary(start, end, categoryId)
     suspend fun incomeRank(start: Long, end: Long, categoryId: Long, limit: Int, offset: Int) = dao.incomeRank(start, end, categoryId, limit, offset)
@@ -63,7 +72,7 @@ class LedgerRepository(private val dao: LedgerDao) {
             if (candidate != null) classified.copy(refundOfTransactionId = candidate.id, classificationStatus = ClassificationStatus.UNCLASSIFIED)
             else classified.copy(classificationStatus = ClassificationStatus.NEED_CONFIRM)
         } else classified
-        return dao.insertNotification(linked).takeIf { it > 0 }?.let { linked.copy(id = it) }
+        return dao.insertNotificationUnlessRetired(linked).takeIf { it > 0 }?.let { linked.copy(id = it) }
     }
     suspend fun classifyExpense(transactionId: Long, categoryId: Long): Boolean =
         dao.classifyExpense(transactionId, categoryId, System.currentTimeMillis()) == 1

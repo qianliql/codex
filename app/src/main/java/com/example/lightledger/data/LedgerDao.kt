@@ -5,6 +5,7 @@ import androidx.room.*
 
 @Dao
 interface LedgerDao {
+    companion object { const val RETIRED_RECORD_KEY = "retired_record_key:" }
     @Query("SELECT * FROM transactions WHERE notificationKey = :key LIMIT 1")
     suspend fun transactionForKey(key: String): LedgerTransaction?
 
@@ -16,7 +17,7 @@ interface LedgerDao {
         var addedCents = 0L
         data.records.forEach { row ->
             val key = "history:${row.importId}"
-            if (transactionForKey(key) != null) {
+            if (transactionForKey(key) != null || setting(RETIRED_RECORD_KEY + key) != null) {
                 skipped++
             } else {
                 val categoryName = if (row.category == "家居") "其他" else row.category
@@ -131,6 +132,9 @@ interface LedgerDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun transaction(id: Long): LedgerTransaction?
 
+    @Query("SELECT * FROM transactions WHERE id IN (:ids)")
+    suspend fun transactionsByIds(ids: List<Long>): List<LedgerTransaction>
+
     @Query("SELECT * FROM transactions WHERE amountCents = :amountCents AND type = :type AND timestamp BETWEEN :start AND :end AND (:method = 'OTHER' OR paymentMethod = :method OR paymentMethod = 'OTHER') ORDER BY ABS(timestamp - :targetTime)")
     suspend fun possibleDuplicates(amountCents: Long, type: TransactionType, method: PaymentMethod,
         start: Long, end: Long, targetTime: Long): List<LedgerTransaction>
@@ -148,6 +152,8 @@ interface LedgerDao {
     @Delete suspend fun deleteTag(tag: Tag)
     @Query("SELECT tagId FROM transaction_tags WHERE transactionId = :transactionId")
     suspend fun tagIdsForTransaction(transactionId: Long): List<Long>
+    @Query("SELECT DISTINCT tagId FROM transaction_tags WHERE transactionId IN (:ids)")
+    suspend fun tagIdsForTransactions(ids: List<Long>): List<Long>
     @Query("DELETE FROM transaction_tags WHERE transactionId = :transactionId")
     suspend fun clearTransactionTags(transactionId: Long)
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -208,6 +214,10 @@ interface LedgerDao {
     @Insert suspend fun insertTransaction(transaction: LedgerTransaction): Long
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertNotification(transaction: LedgerTransaction): Long
+    @Transaction suspend fun insertNotificationUnlessRetired(transaction: LedgerTransaction): Long {
+        if (transaction.notificationKey?.let { setting(RETIRED_RECORD_KEY + it) } != null) return -1L
+        return insertNotification(transaction)
+    }
     @Query("UPDATE transactions SET categoryId = :categoryId, classificationStatus = 'CLASSIFIED', updatedAt = :now WHERE id = :transactionId AND type = 'EXPENSE' AND amountCents > 0 AND classificationStatus IN ('UNCLASSIFIED', 'NEED_CONFIRM') AND EXISTS (SELECT 1 FROM categories WHERE id = :categoryId AND scope != 'INCOME')")
     suspend fun classifyExpense(transactionId: Long, categoryId: Long, now: Long): Int
     @Update suspend fun updateTransaction(transaction: LedgerTransaction)
@@ -222,6 +232,30 @@ interface LedgerDao {
     suspend fun unlinkRefundsForDeleted(ids: List<Long>)
     @Query("DELETE FROM transactions WHERE id IN (:ids)")
     suspend fun deleteTransactionsByIds(ids: List<Long>): Int
+    @Query("SELECT COUNT(*) FROM transactions WHERE refundOfTransactionId IN (:ids)")
+    suspend fun linkedRefundCountForIds(ids: List<Long>): Int
+
+    @Transaction suspend fun replaceWithAggregate(ids: List<Long>, expected: List<LedgerTransaction>,
+        replacement: LedgerTransaction, tagIds: List<Long>): Long {
+        val targets = ids.filter { it > 0 }.distinct()
+        require(targets.size >= 2 && targets.size == ids.size) { "至少选择两笔不同的账单" }
+        val originals = targets.chunked(400).flatMap { transactionsByIds(it) }
+        require(originals.size == targets.size) { "部分原账单已变化，请重新选择" }
+        val expectedById = expected.associateBy { it.id }
+        require(expected.size == targets.size && expectedById.size == targets.size &&
+            originals.all { expectedById[it.id] == it }) { "原账单已变化，请重新选择并核对金额" }
+        TransactionAggregation.preview(originals)
+        require(targets.chunked(400).sumOf { linkedRefundCountForIds(it) } == 0) { "存在关联退款，不能聚合" }
+        require(replacement.id == 0L && replacement.type == originals.first().type && replacement.amountCents > 0 &&
+            replacement.refundOfTransactionId == null && replacement.notificationKey == null &&
+            replacement.source == TransactionSource.MANUAL) { "聚合账单数据无效" }
+        val newId = insertTransaction(replacement)
+        insertTransactionTags(tagIds.distinct().map { TransactionTagCrossRef(newId, it) })
+        originals.mapNotNull { it.notificationKey }.forEach { putSetting(AppSetting(RETIRED_RECORD_KEY + it, "1")) }
+        val removed = targets.chunked(400).sumOf { deleteTransactionsByIds(it) }
+        check(removed == targets.size) { "原账单数量已变化，未完成聚合" }
+        return newId
+    }
     @Transaction suspend fun deleteTransactionsSafely(ids: List<Long>): Int {
         val targets = ids.filter { it > 0 }.distinct()
         if (targets.isEmpty()) return 0

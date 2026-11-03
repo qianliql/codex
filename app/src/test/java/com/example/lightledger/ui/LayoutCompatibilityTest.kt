@@ -196,16 +196,16 @@ class LayoutCompatibilityTest {
                         val more = root.findViewById<View>(R.id.moreActions)
                         assertTrue("toolbar stays inside page", more.right <= (more.parent as View).width)
                     }
-                    assertTrue("$name/$mode: list takes at least two thirds of bill page", list.height * 3 >= page.height * 2)
                     // Also include the bottom navigation in the denominator, excluding system bars.
                     val usable = root.height - root.paddingTop - root.paddingBottom
+                    println("Bill area $name/$mode: ${list.height}/$usable (${list.height * 100 / usable}%)")
+                    assertTrue("$name/$mode: list takes at least two thirds of bill page", list.height * 3 >= page.height * 2)
                     assertTrue("$name/$mode: list takes at least two thirds including navigation", list.height * 3 >= usable * 2)
                     if (mode != "selection") listOf(R.id.billBack, R.id.searchFilters, R.id.addTransaction, R.id.moreActions, R.id.previousMonth, R.id.nextMonth, R.id.billMonthPicker).forEach { id ->
                         val button = root.findViewById<View>(id)
                         val touch = (48 * root.resources.displayMetrics.density).toInt()
                         assertTrue("toolbar touch target", button.height >= touch && button.width >= touch)
                     }
-                    println("Bill area $name/$mode: ${list.height}/$usable (${list.height * 100 / usable}%)")
                     if (RuntimeEnvironment.getApiLevel() == 29) savePreview(root, "bills-$name-$mode")
                 }
             } finally { controller.pause().stop().destroy() }
@@ -260,7 +260,7 @@ class LayoutCompatibilityTest {
         if (view is TextView && view.text.isNotEmpty() && view.layout != null) {
             assertTrue("text has no width: ${view.text}", view.width > 0)
             val height = view.height - view.compoundPaddingTop - view.compoundPaddingBottom
-            assertTrue("text clipped vertically: ${view.text}", view.layout.height <= height + 2)
+            assertTrue("text clipped vertically: ${view.text} (layout=${view.layout.height}, inner=$height, view=${view.height})", view.layout.height <= height + 2)
         }
         if (view is ViewGroup) for (i in 0 until view.childCount) assertTextFits(view.getChildAt(i))
     }

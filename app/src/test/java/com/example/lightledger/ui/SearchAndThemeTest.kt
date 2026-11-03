@@ -13,6 +13,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.lightledger.R
 import com.example.lightledger.data.Category
+import com.example.lightledger.data.CategoryPriority
 import com.example.lightledger.data.Tag
 import com.example.lightledger.databinding.ActivityThemeBinding
 import com.example.lightledger.databinding.ActivityTransactionSearchBinding
@@ -60,6 +61,35 @@ class SearchAndThemeTest {
             assertEquals(TransactionFilter(search = "用品", categoryId = 10000000000L), applied)
             val restored = TransactionFilter.readFrom(form.snapshot().writeTo(Bundle()))
             assertEquals(applied, restored)
+        } finally { controller.pause().stop().destroy() }
+    }
+
+    @Test fun expandingSearchCategoriesKeepsCommonChoicesAndShowsAllOccasionalChoices() {
+        val controller = Robolectric.buildActivity(PreviewActivity::class.java).setup()
+        try {
+            val activity = controller.get()
+            val b = ActivityTransactionSearchBinding.inflate(activity.layoutInflater)
+            activity.setContentView(b.root)
+            val many = (1L..8L).map { Category(id = it, name = "分类$it", priority = CategoryPriority.COMMON) } +
+                (9L..14L).map { Category(id = it, name = "备用$it", priority = CategoryPriority.OCCASIONAL) }
+            TransactionSearchForm(b, TransactionFilter(type = "EXPENSE"), many, emptyList(), { _, _ -> }, {})
+            safeMeasure(b.root)
+            assertEquals(9, b.categoryChoices.childCount)
+            assertEquals(6, b.occasionalCategoryChoices.childCount)
+            assertEquals(View.GONE, b.occasionalCategoryChoices.visibility)
+            b.expandSearchCategories.performClick()
+            measure(b.root)
+            assertEquals(9, b.categoryChoices.childCount)
+            assertEquals(View.VISIBLE, b.occasionalCategoryChoices.visibility)
+            assertTrue(b.occasionalCategoryChoices.height > 48 * activity.resources.displayMetrics.density)
+            assertTrue((0 until b.occasionalCategoryChoices.childCount).all {
+                val chip = b.occasionalCategoryChoices.getChildAt(it)
+                chip.visibility == View.VISIBLE && chip.right <= b.occasionalCategoryChoices.width
+            })
+            b.occasionalCategoryChoices.getChildAt(5).performClick()
+            assertEquals(14L, b.occasionalCategoryChoices.findViewById<Chip>(b.occasionalCategoryChoices.checkedChipId).tag)
+            b.categoryChoices.getChildAt(0).performClick()
+            assertEquals(View.NO_ID, b.occasionalCategoryChoices.checkedChipId)
         } finally { controller.pause().stop().destroy() }
     }
 

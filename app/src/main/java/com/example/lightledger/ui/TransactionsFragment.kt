@@ -41,6 +41,16 @@ class TransactionsFragment : Fragment() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         })
     }
+    private val aggregatePage = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val savedId = result.data?.getLongExtra("savedId", 0L) ?: 0L
+            val anchor = survivingScrollAnchor(selectedIds) ?: currentScrollAnchor()?.let {
+                if (savedId > 0) it.copy(transactionId = savedId) else it
+            }
+            endSelection()
+            refresh(preservePosition = anchor != null, anchorOverride = anchor)
+        }
+    }
     private val model: LedgerViewModel by activityViewModels()
     private val repository by lazy { (requireActivity().application as LedgerApp).repository }
     private var binding: FragmentTransactionsBinding? = null
@@ -108,6 +118,7 @@ class TransactionsFragment : Fragment() {
             updateSelectionUi()
         }
         b.deleteSelected.setOnClickListener { confirmBatchDelete() }
+        b.aggregateSelected.setOnClickListener { openAggregateEditor() }
         b.transactionList.layoutManager = LinearLayoutManager(requireContext())
         b.transactionList.adapter = adapter
         b.transactionList.addOnScrollListener(pagingScroll)
@@ -157,11 +168,12 @@ class TransactionsFragment : Fragment() {
         b.normalActions.visibility = if (selectionMode) View.GONE else View.VISIBLE
         b.selectionBar.visibility = if (selectionMode) View.VISIBLE else View.GONE
         b.selectionCount.text = "已选 ${selectedIds.size} 笔"
-        b.deleteSelected.text = "删除（${selectedIds.size}）"
+        b.deleteSelected.text = "删除"
         b.deleteSelected.isEnabled = selectedIds.isNotEmpty() && !deleting
+        b.aggregateSelected.isEnabled = selectedIds.size >= 2 && !deleting
         b.cancelSelection.isEnabled = !deleting
         b.selectLoaded.isEnabled = !deleting && rows.isNotEmpty()
-        b.selectLoaded.text = if (rows.isNotEmpty() && rows.all { it.transaction.id in selectedIds }) "取消全选" else "全选已加载"
+        b.selectLoaded.text = if (rows.isNotEmpty() && rows.all { it.transaction.id in selectedIds }) "取消全选" else "全选"
         selectionBack?.isEnabled = selectionMode
         adapter?.setSelection(selectedIds, selectionMode)
     }
@@ -181,6 +193,14 @@ class TransactionsFragment : Fragment() {
         selectedIds.clear()
         selectionMode = false
         updateSelectionUi()
+    }
+
+    private fun openAggregateEditor() {
+        if (selectedIds.size < 2 || deleting) return
+        aggregatePage.launch(Intent(requireContext(), TransactionEditorActivity::class.java).apply {
+            action = TransactionEditorActivity.ACTION_AGGREGATE
+            putExtra(TransactionEditorActivity.EXTRA_AGGREGATE_IDS, selectedIds.toLongArray())
+        })
     }
 
     private fun confirmBatchDelete() {

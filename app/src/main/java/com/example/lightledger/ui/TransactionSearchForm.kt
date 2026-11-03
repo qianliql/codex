@@ -31,7 +31,8 @@ internal class TransactionSearchForm(
     private var showOccasional = categories.any { it.id == initial.categoryId && it.priority == CategoryPriority.OCCASIONAL }
     private val tagOptions = listOf(0L to "不限标签") + tags.map { it.id to it.name }
     init {
-        EditorChoiceRows.bindCategories(b.categoryChoices, b.searchCategoryScroll)
+        EditorChoiceRows.bindCategoryGrid(b.categoryChoices)
+        EditorChoiceRows.bindCategoryGrid(b.occasionalCategoryChoices)
         EditorChoiceRows.bindPayments(b.methodChoices)
         chips(b.datePresets, SearchDatePreset.entries.map { it to it.label }, preset()) { selected ->
             selected.range()?.let { (start, end) -> draft = draft.copy(start = start, end = end) }
@@ -47,7 +48,12 @@ internal class TransactionSearchForm(
         }
         chips(b.methodChoices, PaymentMethod.entries.filter { it != PaymentMethod.OTHER }.map { it.name to UiFormat.method(it) }, draft.method, empty = "") { draft = draft.copy(method = it); updateCount() }
         EditorChoiceRows.fitPayments(b.methodChoices)
-        b.clearCategory.setOnClickListener { draft = draft.copy(categoryId = -1); select(b.categoryChoices, -1L); updateCount() }
+        b.clearCategory.setOnClickListener {
+            draft = draft.copy(categoryId = -1)
+            select(b.categoryChoices, -1L)
+            select(b.occasionalCategoryChoices, -1L)
+            updateCount()
+        }
         b.clearMethod.setOnClickListener { draft = draft.copy(method = ""); select(b.methodChoices, ""); updateCount() }
         chips(b.sourceChoices, listOf("" to "不限") + TransactionSource.entries.map { it.name to TransactionFilter.sourceLabel(it.name) }, draft.source) { draft = draft.copy(source = it); updateCount() }
         b.tagChoice.setAdapter(ArrayAdapter(b.root.context, R.layout.row_filter_dropdown, tagOptions.map { it.second }))
@@ -62,7 +68,7 @@ internal class TransactionSearchForm(
             draft = draft.copy(end = end); select(b.datePresets, SearchDatePreset.CUSTOM); renderDates(); updateCount()
         } }
         b.moreFilters.setOnClickListener { more(b.additionalFilters.visibility != View.VISIBLE) }
-        b.resetFilters.setOnClickListener { draft = TransactionFilter(); render() }
+        b.resetFilters.setOnClickListener { draft = TransactionFilter(); showOccasional = false; render() }
         b.applyFilters.setOnClickListener { submit() }
         render()
         b.applyFilters.isEnabled = true
@@ -109,22 +115,34 @@ internal class TransactionSearchForm(
     private fun renderCategories() {
         val options = categoryOptions()
         if (draft.categoryId > 0 && options.none { it.id == draft.categoryId }) draft = draft.copy(categoryId = -1)
+        val occasional = if (draft.type == "INCOME") emptyList() else options.filter {
+            it.scope != CategoryScope.INCOME && it.priority == CategoryPriority.OCCASIONAL
+        }
+        val common = options.filterNot { it in occasional }
         val old = rendering; rendering = true
         b.categoryChoices.setOnCheckedStateChangeListener(null)
+        b.occasionalCategoryChoices.setOnCheckedStateChangeListener(null)
         b.categoryChoices.removeAllViews()
-        chips(b.categoryChoices, options.map { it.id to it.name } + (0L to "未分类"), draft.categoryId, true, -1L) {
+        b.occasionalCategoryChoices.removeAllViews()
+        chips(b.categoryChoices, common.map { it.id to it.name } + (0L to "未分类"), draft.categoryId, true, -1L) {
+            val wasRendering = rendering; rendering = true
+            b.occasionalCategoryChoices.clearCheck(); rendering = wasRendering
             draft = draft.copy(categoryId = it); updateCount()
         }
+        chips(b.occasionalCategoryChoices, occasional.map { it.id to it.name }, draft.categoryId, true, -1L) {
+            val wasRendering = rendering; rendering = true
+            b.categoryChoices.clearCheck(); rendering = wasRendering
+            draft = draft.copy(categoryId = it); updateCount()
+        }
+        EditorChoiceRows.fitCategoryGrid(b.categoryChoices)
+        EditorChoiceRows.fitCategoryGrid(b.occasionalCategoryChoices)
         renderCategoryVisibility(); rendering = old
     }
     private fun renderCategoryVisibility() {
-        val ids = if (draft.type == "INCOME") emptySet() else categoryOptions()
-            .filter { it.scope != CategoryScope.INCOME && it.priority == CategoryPriority.OCCASIONAL }.map { it.id }.toSet()
-        b.categoryChoices.children.filterIsInstance<Chip>().filter { it.tag in ids }.forEach { it.visibility = if (showOccasional) View.VISIBLE else View.GONE }
-        b.expandSearchCategories.visibility = if (ids.isEmpty()) View.GONE else View.VISIBLE
-        b.expandSearchCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（${ids.size}）▾"
-        EditorChoiceRows.fitCategories(b.categoryChoices, b.searchCategoryScroll)
-        b.searchCategoryScroll.scrollTo(0, 0)
+        val count = b.occasionalCategoryChoices.childCount
+        b.expandSearchCategories.visibility = if (count == 0) View.GONE else View.VISIBLE
+        b.expandSearchCategories.text = if (showOccasional) "收起不常用分类 ▴" else "展开不常用分类（$count）▾"
+        b.occasionalCategoryChoices.visibility = if (count > 0 && showOccasional) View.VISIBLE else View.GONE
     }
     private fun select(group: ChipGroup, value: Any) {
         val wasRendering = rendering; rendering = true

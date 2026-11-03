@@ -14,7 +14,10 @@
                         <com.google.android.material.button.MaterialButton android:id="@+id/incomeOption" style="@style/LedgerToggleButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="收入" />
                         <com.google.android.material.button.MaterialButton android:id="@+id/specialTypeOption" style="@style/LedgerToggleButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:visibility="gone" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
-                    <TextView android:id="@+id/amountLabel" style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="支出金额（元）" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center_vertical" android:orientation="horizontal">
+                        <TextView android:id="@+id/amountLabel" style="@style/LedgerCaption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="支出金额（元）" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/calculateAmount" style="@style/LedgerTextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="48dp" android:minHeight="48dp" android:paddingHorizontal="8dp" android:text="计算" android:textSize="13sp" android:contentDescription="打开金额加减乘除计算" />
+                    </LinearLayout>
                     <com.google.android.material.textfield.TextInputLayout android:id="@+id/amountInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" app:boxBackgroundMode="none" app:hintEnabled="false" app:prefixText="¥" app:prefixTextAppearance="@style/LedgerAmountText" app:prefixTextColor="?attr/colorOnSurface">
                         <com.google.android.material.textfield.TextInputEditText android:id="@+id/amount" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="0.00" android:imeOptions="actionNext" android:inputType="numberDecimal" android:maxLines="1" android:fontFeatureSettings="tnum" android:textColor="?attr/colorOnSurface" android:textSize="36sp" android:textStyle="bold" />
                     </com.google.android.material.textfield.TextInputLayout>
@@ -30,7 +33,7 @@
             </com.google.android.material.card.MaterialCardView>
             <com.google.android.material.card.MaterialCardView style="@style/LedgerCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="备注（可选）">
+                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/noteInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="备注（可选）">
                         <com.google.android.material.textfield.TextInputEditText android:id="@+id/note" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textMultiLine" android:minLines="1" android:maxLines="3" android:textSize="15sp" android:paddingVertical="12dp" />
                     </com.google.android.material.textfield.TextInputLayout>
                     <FrameLayout android:id="@+id/primaryPayment" android:layout_width="match_parent" android:layout_height="wrap_content">

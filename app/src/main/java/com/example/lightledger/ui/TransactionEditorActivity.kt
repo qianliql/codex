@@ -15,6 +15,7 @@ import com.example.lightledger.LedgerApp
 import com.example.lightledger.R
 import com.example.lightledger.data.*
 import com.example.lightledger.databinding.ActivityTransactionEditorBinding
+import com.example.lightledger.databinding.DialogAmountCalculatorBinding
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -22,12 +23,18 @@ import java.math.RoundingMode
 import java.util.Calendar
 
 class TransactionEditorActivity : LedgerActivity() {
-    companion object { const val ACTION_SCREENSHOT_CONFIRM = "com.example.lightledger.CONFIRM_SCREENSHOT" }
+    companion object {
+        const val ACTION_SCREENSHOT_CONFIRM = "com.example.lightledger.CONFIRM_SCREENSHOT"
+        const val ACTION_AGGREGATE = "com.example.lightledger.AGGREGATE_TRANSACTIONS"
+        const val EXTRA_AGGREGATE_IDS = "aggregate_ids"
+    }
     private lateinit var binding: ActivityTransactionEditorBinding
     private val repository by lazy { (application as LedgerApp).repository }
     private var categories: List<Category> = emptyList()
     private var showOccasional = false
     private var existing: LedgerTransaction? = null
+    private var aggregateSourceIds: List<Long> = emptyList()
+    private var aggregateSourceSnapshot: List<LedgerTransaction> = emptyList()
     private var tags: List<Tag> = emptyList()
     private val selectedTagIds = mutableSetOf<Long>()
     private var refundOfId: Long? = null
@@ -53,9 +60,11 @@ class TransactionEditorActivity : LedgerActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTransactionEditorBinding.inflate(layoutInflater)
         val id = intent.getLongExtra("id", 0)
-        if (id != 0L) {
+        aggregateSourceIds = if (intent.action == ACTION_AGGREGATE)
+            intent.getLongArrayExtra(EXTRA_AGGREGATE_IDS)?.toList().orEmpty() else emptyList()
+        if (id != 0L || aggregateSourceIds.isNotEmpty()) {
             // The record is read asynchronously. Never render the new-bill form for an edit.
-            binding.pageTitle.text = "编辑账单"
+            binding.pageTitle.text = if (aggregateSourceIds.isNotEmpty()) "聚合账单" else "编辑账单"
             binding.editorScroll.visibility = View.INVISIBLE
             binding.save.visibility = View.INVISIBLE
         } else if (intent.action == ACTION_SCREENSHOT_CONFIRM) {
@@ -75,6 +84,7 @@ class TransactionEditorActivity : LedgerActivity() {
             updateOccasionalVisibility()
         }
         binding.moreDetails.setOnClickListener { showMoreDetails(binding.additionalDetails.visibility != View.VISIBLE) }
+        binding.calculateAmount.setOnClickListener { showAmountCalculator() }
         binding.amount.doAfterTextChanged { editable ->
             binding.amountInput.error = null
             if (editable?.startsWith(".") == true) {
@@ -126,6 +136,21 @@ class TransactionEditorActivity : LedgerActivity() {
                 updateRefundLabel()
                 binding.editorScroll.visibility = View.VISIBLE
                 binding.save.visibility = View.VISIBLE
+            } else if (aggregateSourceIds.isNotEmpty()) {
+                try {
+                    val source = repository.transactionsByIds(aggregateSourceIds)
+                    require(source.size == aggregateSourceIds.size) { "部分账单已变化，请重新选择" }
+                    require(repository.linkedRefundCountForIds(aggregateSourceIds) == 0) { "存在关联退款，不能聚合" }
+                    aggregateSourceSnapshot = source
+                    showAggregate(TransactionAggregation.preview(source))
+                    selectedTagIds.addAll(repository.tagIdsForTransactions(aggregateSourceIds))
+                    updateTagLabel()
+                    binding.editorScroll.visibility = View.VISIBLE
+                    binding.save.visibility = View.VISIBLE
+                } catch (e: Exception) {
+                    Toast.makeText(this@TransactionEditorActivity, e.message ?: "无法聚合这些账单", Toast.LENGTH_LONG).show()
+                    finish(); return@launch
+                }
             } else if (intent.action == ACTION_SCREENSHOT_CONFIRM) {
                 showScreenshotDraft()
                 if (selectedType == TransactionType.EXPENSE) repository.suggestedCategory(binding.merchant.text?.toString())?.let(::selectCategory)
@@ -181,6 +206,26 @@ class TransactionEditorActivity : LedgerActivity() {
         binding.ocrWarning.visibility = View.VISIBLE
         binding.ocrRawText.text = intent.getStringExtra("rawOcrText").orEmpty().ifBlank { "未识别到文字" }
         binding.ocrRawText.visibility = View.VISIBLE
+    }
+
+    private fun showAggregate(preview: AggregationPreview) {
+        showMoreDetails(false)
+        binding.pageTitle.text = "聚合账单"
+        binding.save.text = "保存并替换"
+        binding.noteInput.hint = "聚合备注"
+        binding.ocrWarning.text = "已选 ${aggregateSourceIds.size} 笔${UiFormat.type(preview.type)}，金额、时间和支付方式已填好。保存后将替换原账单。"
+        binding.ocrWarning.visibility = View.VISIBLE
+        binding.amount.setText(BigDecimal.valueOf(preview.amountCents, 2).toPlainString())
+        setType(preview.type)
+        binding.typeToggle.visibility = View.GONE
+        selectPaymentMethod(preview.paymentMethod)
+        val categoryId = preview.categoryId?.takeIf { id -> categories.any { it.id == id } }
+            ?: categories.firstOrNull { it.name == "其他" }?.id
+        selectCategory(categoryId)
+        binding.merchant.setText(preview.merchant.orEmpty())
+        binding.note.setText(preview.note.orEmpty())
+        selectedTime.timeInMillis = preview.timestamp
+        updateTimeLabel()
     }
 
     private fun showExisting(t: LedgerTransaction) {
@@ -260,7 +305,7 @@ class TransactionEditorActivity : LedgerActivity() {
     }
 
     private fun showPaymentChoices() {
-        PaymentMethod.entries.filter { it != PaymentMethod.OTHER }.forEach { method ->
+        PaymentMethod.entries.filter { it != PaymentMethod.OTHER || aggregateSourceIds.isNotEmpty() }.forEach { method ->
             val chip = choiceChip(UiFormat.method(method)).apply {
                 setOnCheckedChangeListener { _, checked ->
                     if (checked) {
@@ -383,7 +428,55 @@ class TransactionEditorActivity : LedgerActivity() {
 
     private fun updateTimeLabel() { binding.timestamp.text = UiFormat.date(selectedTime.timeInMillis) }
 
+    private fun showAmountCalculator() {
+        val cents = runCatching {
+            BigDecimal(binding.amount.text.toString().trim()).movePointRight(2)
+                .setScale(0, RoundingMode.UNNECESSARY).longValueExact()
+        }.getOrNull()
+        if (cents == null || cents <= 0) {
+            binding.amountInput.error = "请先填写大于 0 的原金额"
+            return
+        }
+        val dialogBinding = DialogAmountCalculatorBinding.inflate(layoutInflater)
+        dialogBinding.baseAmount.text = "当前金额 ${UiFormat.money(cents)}"
+        dialogBinding.operations.check(R.id.operationSubtract)
+        fun operation() = when (dialogBinding.operations.checkedButtonId) {
+            R.id.operationAdd -> AmountOperation.ADD
+            R.id.operationMultiply -> AmountOperation.MULTIPLY
+            R.id.operationDivide -> AmountOperation.DIVIDE
+            else -> AmountOperation.SUBTRACT
+        }
+        fun preview() {
+            val input = dialogBinding.operand.text?.toString().orEmpty()
+            val result = runCatching { AmountAdjustment.calculate(cents, operation(), input) }.getOrNull()
+            dialogBinding.resultPreview.text = if (result == null) "输入数值后查看结果" else "调整后 ${UiFormat.money(result)}"
+            dialogBinding.operandInput.error = null
+        }
+        dialogBinding.operand.doAfterTextChanged { preview() }
+        dialogBinding.operations.addOnButtonCheckedListener { _, _, checked -> if (checked) preview() }
+        val dialog = AlertDialog.Builder(this).setTitle("调整金额")
+            .setView(dialogBinding.root).setNegativeButton("取消", null)
+            .setPositiveButton("应用", null).create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                try {
+                    val result = AmountAdjustment.calculate(cents, operation(), dialogBinding.operand.text?.toString().orEmpty())
+                    binding.amount.setText(BigDecimal.valueOf(result, 2).toPlainString())
+                    dialog.dismiss()
+                } catch (e: IllegalArgumentException) {
+                    dialogBinding.operandInput.error = e.message
+                }
+            }
+        }
+        dialog.show()
+    }
+
     private fun save() {
+        if (aggregateSourceIds.isNotEmpty() && binding.note.text.isNullOrBlank()) {
+            binding.noteInput.error = "请填写聚合备注"
+            return
+        }
+        binding.noteInput.error = null
         val amount = try {
             BigDecimal(binding.amount.text.toString().trim()).movePointRight(2).setScale(0, RoundingMode.UNNECESSARY).longValueExact()
         } catch (_: Exception) { 0L }
@@ -412,6 +505,10 @@ class TransactionEditorActivity : LedgerActivity() {
                 else -> ClassificationStatus.CLASSIFIED
             },
         )
+        if (aggregateSourceIds.isNotEmpty()) {
+            confirmAggregate(transaction)
+            return
+        }
         binding.save.isEnabled = false
         lifecycleScope.launch {
             try {
@@ -425,6 +522,26 @@ class TransactionEditorActivity : LedgerActivity() {
             }
             catch (e: Exception) { binding.save.isEnabled = true; Toast.makeText(this@TransactionEditorActivity, "保存失败：${e.localizedMessage}", Toast.LENGTH_LONG).show() }
         }
+    }
+
+    private fun confirmAggregate(transaction: LedgerTransaction) {
+        AlertDialog.Builder(this).setTitle("保存并替换 ${aggregateSourceIds.size} 笔账单？")
+            .setMessage("新账单金额 ${UiFormat.money(transaction.amountCents)}。原账单将被删除，无法撤销；原有备注已带入，可返回检查。")
+            .setNegativeButton("继续编辑", null)
+            .setPositiveButton("保存并替换") { _, _ ->
+                binding.save.isEnabled = false
+                lifecycleScope.launch {
+                    try {
+                        val id = repository.replaceWithAggregate(aggregateSourceIds, aggregateSourceSnapshot,
+                            transaction, selectedTagIds.toList())
+                        setResult(RESULT_OK, intentWithResult(id))
+                        finish()
+                    } catch (e: Exception) {
+                        binding.save.isEnabled = true
+                        Toast.makeText(this@TransactionEditorActivity, "聚合失败：${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }.show()
     }
 
     private suspend fun persist(transaction: LedgerTransaction) {
