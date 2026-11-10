@@ -104,6 +104,8 @@ class BillNavigationTest {
                 frame.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(metrics.heightPixels, View.MeasureSpec.EXACTLY))
                 frame.layout(0, 0, frame.measuredWidth, frame.measuredHeight)
+                list.forceLayout()
+                list.layout(list.left, list.top, list.right, list.bottom)
             }
             await { layout(); adapter.itemCount == 100 }
             list.scrollToPosition(99); await { layout(); adapter.itemCount == 200 }
@@ -149,19 +151,25 @@ class BillNavigationTest {
                 frame.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(metrics.heightPixels, View.MeasureSpec.EXACTLY))
                 frame.layout(0, 0, frame.measuredWidth, frame.measuredHeight)
+                list.forceLayout()
+                list.layout(list.left, list.top, list.right, list.bottom)
             }
             await { layout(); adapter.itemCount == 100 }
-            list.scrollToPosition(70); layout()
+            manager.scrollToPositionWithOffset(70, 0)
+            try { await { layout(); manager.findFirstVisibleItemPosition() >= 65 } }
+            catch (error: AssertionError) { throw AssertionError("initial position=${manager.findFirstVisibleItemPosition()}, count=${adapter.itemCount}, height=${list.height}", error) }
             val before = manager.findFirstVisibleItemPosition()
             assertTrue(before >= 65)
             val deletedId = adapter.currentList[before].transaction.id
             assertTrue(list.findViewHolderForAdapterPosition(before)!!.itemView.performClick())
             runBlocking { db.dao().deleteTransactionSafely(db.dao().transaction(deletedId)!!) }
             fragment.onResume()
-            await {
+            try { await {
                 layout()
                 adapter.currentList.none { it.transaction.id == deletedId } &&
                     manager.findFirstVisibleItemPosition() >= before - 2
+            } } catch (error: AssertionError) {
+                throw AssertionError("deleted=${db.dao().let { runBlocking { it.transaction(deletedId) == null } }}, count=${adapter.itemCount}, position=${manager.findFirstVisibleItemPosition()}, before=$before", error)
             }
             assertTrue(manager.findFirstVisibleItemPosition() > 0)
         } finally { controller.pause().stop().destroy() }
@@ -187,9 +195,13 @@ class BillNavigationTest {
                 frame.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(metrics.heightPixels, View.MeasureSpec.EXACTLY))
                 frame.layout(0, 0, frame.measuredWidth, frame.measuredHeight)
+                list.forceLayout()
+                list.layout(list.left, list.top, list.right, list.bottom)
             }
             await { layout(); adapter.itemCount == 90 }
-            list.scrollToPosition(50); layout()
+            manager.scrollToPositionWithOffset(50, 0)
+            try { await { layout(); manager.findFirstVisibleItemPosition() >= 45 } }
+            catch (error: AssertionError) { throw AssertionError("initial position=${manager.findFirstVisibleItemPosition()}, count=${adapter.itemCount}, height=${list.height}", error) }
             val first = manager.findFirstVisibleItemPosition()
             assertTrue(first >= 45)
             val firstId = adapter.currentList[first].transaction.id
@@ -203,9 +215,11 @@ class BillNavigationTest {
             frame.findViewById<View>(R.id.deleteSelected).performClick()
             (ShadowDialog.getLatestDialog() as AlertDialog)
                 .getButton(DialogInterface.BUTTON_POSITIVE).performClick()
-            await {
+            try { await {
                 layout()
                 adapter.itemCount == 88 && manager.findFirstVisibleItemPosition() >= beforeDelete - 2
+            } } catch (error: AssertionError) {
+                throw AssertionError("count=${adapter.itemCount}, position=${manager.findFirstVisibleItemPosition()}, before=$beforeDelete", error)
             }
             assertTrue(manager.findFirstVisibleItemPosition() > 0)
             assertNull(runBlocking { db.dao().transaction(firstId) })

@@ -128,7 +128,9 @@ class Features091Test {
                 assertTrue((b.typeChoices.parent.parent as View).top < b.keywordInput.top)
                 assertEquals("EXPENSE", form.snapshot().type)
                 assertFalse(chips(b.categoryChoices).any { it.text == "工资" })
-                assertEquals(2, chips(b.categoryChoices).filter { it.visibility == View.VISIBLE }.map { it.top }.distinct().size)
+                val visibleCategories = chips(b.categoryChoices).filter { it.visibility == View.VISIBLE }
+                assertEquals((visibleCategories.size + 3) / 4, visibleCategories.map { it.top }.distinct().size)
+                assertEquals(4, visibleCategories.count { it.top == visibleCategories.first().top })
                 assertEquals(listOf("微信", "支付宝", "银行卡", "现金"), chips(b.methodChoices).map { it.text.toString() })
                 assertEquals(1, chips(b.methodChoices).map { it.top }.distinct().size)
                 idle(); measure(b.root)

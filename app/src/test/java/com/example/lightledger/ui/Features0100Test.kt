@@ -94,8 +94,11 @@ class Features0100Test {
             assertEquals(PaymentMethod.ALIPAY, DetectedPaymentMethod.latest(app))
             listOf(
                 "昨日记账日报，支出￥100.00", "付款失败，金额￥7.00",
-                "付款成功，查看详情", "付款成功，￥7.00与￥8.00"
-            ).forEach { send("com.tencent.mm", "微信支付", it) }
+                "付款成功，查看详情", "付款成功，￥7.00，另有￥8.00付款"
+            ).forEach {
+                send("com.tencent.mm", "微信支付", it)
+                assertEquals("unexpectedly accepted: $it", PaymentMethod.ALIPAY, DetectedPaymentMethod.latest(app))
+            }
             send("com.tencent.mm", "朋友", "支付成功，￥8.00")
             send("com.tencent.mm", "微信支付", "支付成功，￥8.00", true)
             send("untrusted.package", "微信支付", "支付成功，￥8.00")

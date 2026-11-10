@@ -66,9 +66,10 @@ class CategoryScreen060Test {
             runBlocking { db.dao().saveCategoryPreferences(selected.copy(priority = 2)) }
             val search = ActivityTransactionSearchBinding.inflate(activity.layoutInflater)
             val form = TransactionSearchForm(search, TransactionFilter(), runBlocking { db.dao().categoryList() }, emptyList(), { _, _ -> }, {})
-            val travel = (0 until search.categoryChoices.childCount).map { search.categoryChoices.getChildAt(it) }.filterIsInstance<Chip>().single { it.tag == travelId }
-            assertEquals(View.GONE, travel.visibility)
-            search.expandSearchCategories.performClick(); assertEquals(View.VISIBLE, travel.visibility)
+            val travel = (0 until search.occasionalCategoryChoices.childCount)
+                .map { search.occasionalCategoryChoices.getChildAt(it) }.filterIsInstance<Chip>().single { it.tag == travelId }
+            assertEquals(View.GONE, search.occasionalCategoryChoices.visibility)
+            search.expandSearchCategories.performClick(); assertEquals(View.VISIBLE, search.occasionalCategoryChoices.visibility)
             travel.performClick(); assertEquals(travelId, form.snapshot().categoryId)
             assertNotNull(travel.chipIcon)
             RuntimeEnvironment.setFontScale(1.3f)
