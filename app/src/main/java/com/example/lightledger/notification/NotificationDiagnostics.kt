@@ -16,13 +16,27 @@ object NotificationDiagnostics {
     private const val RESULT = "last_result"
     private const val HISTORY = "recent_results"
     private const val HISTORY_LIMIT = 24
+    private const val PAYMENT_HISTORY = "payment_results"
+    private const val PAYMENT_HISTORY_LIMIT = 96
+
+    /** A chat message cannot displace a payment notification from the diagnostic history. */
+    internal fun isPaymentRelated(packageName: String, title: String, text: String): Boolean = when (packageName) {
+        "com.tencent.mm" -> listOf("微信支付", "微信收款", "微信退款", "微信转账").any(title::contains) ||
+            PaymentTextParser.hasOfficialWeChatPrefix(text) ||
+            (title.contains("服务通知") && listOf("支付", "付款", "收款", "退款", "转账").any(text::contains))
+        "com.eg.android.AlipayGphone" -> listOf("交易提醒", "支付提醒", "收款提醒", "转账提醒").any(title::contains) ||
+            listOf("支付", "付款", "支出", "收款", "退款", "转账", "交易").any(text::contains)
+        else -> false
+    }
 
     fun lifecycle(context: Context, event: String) {
         context.getSharedPreferences(PREFS, 0).edit()
             .putString("listener_event", event).putLong("listener_time", System.currentTimeMillis()).apply()
     }
 
-    @Synchronized fun record(context: Context, packageName: String, result: String, times: ProcessingTimes? = null) {
+    @Synchronized fun record(context: Context, packageName: String, result: String,
+                             times: ProcessingTimes? = null, paymentRelated: Boolean = false,
+                             notificationTime: Long = 0L) {
         val source = when (packageName) {
             "com.tencent.mm" -> "微信"
             "com.eg.android.AlipayGphone" -> "支付宝"
@@ -59,6 +73,15 @@ object NotificationDiagnostics {
             for (index in start until previous.length()) recent.put(previous.optJSONObject(index))
             recent.put(JSONObject().put("time", now).put("source", source).put("result", result))
             editor.putString(HISTORY, recent.toString())
+            if (paymentRelated) {
+                val previousPayments = runCatching { JSONArray(prefs.getString(PAYMENT_HISTORY, "[]")) }.getOrDefault(JSONArray())
+                val payments = JSONArray()
+                val first = (previousPayments.length() - PAYMENT_HISTORY_LIMIT + 1).coerceAtLeast(0)
+                for (index in first until previousPayments.length()) payments.put(previousPayments.optJSONObject(index))
+                payments.put(JSONObject().put("time", now).put("notificationTime", notificationTime)
+                    .put("source", source).put("result", result))
+                editor.putString(PAYMENT_HISTORY, payments.toString())
+            }
         }
         editor.apply()
     }
@@ -83,6 +106,7 @@ object NotificationDiagnostics {
             else -> "后台保护：当前未运行"
         }
         val recent = runCatching { JSONArray(prefs.getString(HISTORY, "[]")) }.getOrDefault(JSONArray())
+        val payments = runCatching { JSONArray(prefs.getString(PAYMENT_HISTORY, "[]")) }.getOrDefault(JSONArray())
         return state + "\n" + protection + event + "\n\n" + ProcessExitDiagnostics.summary(context) + "\n\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->
             val time = prefs.getLong("${source}_time", 0L)
             if (time == 0L) "$source：尚未收到通知" else {
@@ -93,9 +117,19 @@ object NotificationDiagnostics {
                 val history = (0 until recent.length()).mapNotNull { recent.optJSONObject(it) }
                     .filter { it.optString("source") == source }.takeLast(6).asReversed()
                     .joinToString("\n") { "${format.format(Date(it.optLong("time")))} · ${it.optString("result")}" }
+                val paymentHistory = (0 until payments.length()).mapNotNull { payments.optJSONObject(it) }
+                    .filter { it.optString("source") == source }.takeLast(12).asReversed()
+                    .joinToString("\n") {
+                        val posted = it.optLong("notificationTime").takeIf { time -> time > 0L }
+                        val received = it.optLong("time")
+                        "${format.format(Date(posted ?: received))} · ${it.optString("result")}" +
+                            if (posted != null && kotlin.math.abs(received - posted) > 60_000L)
+                                "（处理于 ${format.format(Date(received))}）" else ""
+                    }
                 "$source · 最近处理 ${format.format(Date(time))}\n${prefs.getString("${source}_result", "未知")}" +
                     timing +
                     (if (saved > 0) "\n最近记账：${format.format(Date(saved))}" else "\n尚无成功记录") +
+                    (if (paymentHistory.isNotEmpty()) "\n付款相关通知：\n$paymentHistory" else "") +
                     (if (history.isNotEmpty()) "\n最近处理记录：\n$history" else "")
             }
         }

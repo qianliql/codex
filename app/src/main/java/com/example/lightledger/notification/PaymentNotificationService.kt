@@ -21,8 +21,26 @@ class PaymentNotificationService : NotificationListenerService() {
         @Volatile private var current: PaymentNotificationService? = null
         fun inspectCurrent(): Boolean {
             val listener = current ?: return false
-            return runCatching { listener.activeNotifications.orEmpty().forEach(listener::onNotificationPosted) }.isSuccess
+            return runCatching {
+                listener.activeNotifications.orEmpty().forEach { sbn ->
+                    if (sbn.packageName != "com.tencent.mm" && sbn.packageName != "com.eg.android.AlipayGphone") return@forEach
+                    val extras = sbn.notification?.extras ?: return@forEach
+                    val (title, text) = runCatching { NotificationTextReader.read(extras) }.getOrNull() ?: return@forEach
+                    if (NotificationDiagnostics.isPaymentRelated(sbn.packageName, title, text) &&
+                        !listener.wasObserved(listener.fingerprint(sbn, title, text))) listener.onNotificationPosted(sbn)
+                }
+            }.onFailure { Log.w("PaymentNotification", "Could not inspect active notifications", it) }.isSuccess
         }
+    }
+    private val observed = LinkedHashSet<String>()
+    private fun fingerprint(sbn: StatusBarNotification, title: String, text: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest("${sbn.key}|${sbn.postTime}|$title|$text".toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    private fun wasObserved(key: String) = synchronized(observed) { key in observed }
+    private fun markObserved(key: String) = synchronized(observed) {
+        observed.add(key)
+        while (observed.size > 256) observed.remove(observed.first())
     }
     override fun onListenerConnected() {
         super.onListenerConnected()
@@ -65,11 +83,13 @@ class PaymentNotificationService : NotificationListenerService() {
         if (sourcePackage != "com.tencent.mm" && sourcePackage != "com.eg.android.AlipayGphone") return
         val context = applicationContext
         val receivedAt = SystemClock.elapsedRealtimeNanos()
+        val notificationTime = sbn.postTime.takeIf { it > 0L } ?: System.currentTimeMillis()
+        var paymentRelated = false
         NotificationDiagnostics.record(context, sbn.packageName, "已收到，正在识别")
         fun outcome(result: String) {
             val elapsed = ((SystemClock.elapsedRealtimeNanos() - receivedAt) / 1_000_000L).coerceAtLeast(0L)
             NotificationDiagnostics.record(context, sbn.packageName, result,
-                NotificationDiagnostics.ProcessingTimes(elapsed, elapsed, 0, 0))
+                NotificationDiagnostics.ProcessingTimes(elapsed, elapsed, 0, 0), paymentRelated, notificationTime)
         }
         val notification = sbn.notification ?: run {
             outcome("通知没有可读取的内容")
@@ -84,6 +104,8 @@ class PaymentNotificationService : NotificationListenerService() {
             Log.w("PaymentNotification", "Could not read notification extras", it)
             return
         }
+        paymentRelated = NotificationDiagnostics.isPaymentRelated(sourcePackage, title, text)
+        if (paymentRelated) markObserved(fingerprint(sbn, title, text))
         if (text.isBlank()) {
             outcome("通知没有可读取的文字")
             return
@@ -150,7 +172,7 @@ class PaymentNotificationService : NotificationListenerService() {
                         parseMs = elapsedMs(receivedAt, parsedAt),
                         saveMs = elapsedMs(parsedAt, savedAt),
                         promptMs = elapsedMs(savedAt, promptedAt),
-                    ))
+                    ), paymentRelated, notificationTime)
             }
             try {
                 val saved = saveRecord(app, record)

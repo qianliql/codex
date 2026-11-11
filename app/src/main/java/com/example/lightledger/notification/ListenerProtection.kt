@@ -61,6 +61,9 @@ class ListenerProtectionService : Service() {
                 return
             }
             ListenerRecovery.check(this@ListenerProtectionService)
+            // A vendor may keep the listener bound but drop an individual callback.
+            // Recheck only unseen payment-related notifications still visible in the shade.
+            if (PaymentNotificationService.isConnected) PaymentNotificationService.inspectCurrent()
             updateNotification()
             handler.postDelayed(this, 30_000L)
         }

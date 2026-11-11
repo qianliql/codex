@@ -1,6 +1,11 @@
 # 验证说明
 
-## 当前版本1.1.1
+## 当前版本1.1.2
+
+- `testDebugUnitTest` 全套 293 项通过，0 失败；`assembleRelease` 成功。APK 22,299,172 字节，SHA-256 `fab0337f6b66ad1f4d3ecc049251f1af1cd0ce3ee552cad93672fa15854c0a37`，versionCode37，v2 签名与 1.1.1 证书一致。
+- 合成通知验证付款相关历史不被普通聊天冲掉、仍在通知栏的未处理付款补查一次且不会重复处理。尚未覆盖安装到真机，也未进行本版真实付款。详见[本版报告](updates/1.1.2.md)。
+
+## 版本1.1.1
 
 - `testDebugUnitTest` 全套 290 项通过，0 失败；`assembleRelease` 成功。APK 22,282,788 字节，SHA-256 `a0c99e7d95ad185a86bd6919402e4c191a5984d6208f5fada866a60a8fa0a802`，versionCode36，v2 签名与原证书已核对。
 - OPPO PFEM10 上重现旧版输入框双提示重叠，覆盖安装后确认文字分开；临时输入减 5 后预览 ¥7.34，测试账单未保存。通知读取授权仍在。详见[本版报告](updates/1.1.1.md)。
