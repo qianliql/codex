@@ -7,7 +7,8 @@
         <com.google.android.material.button.MaterialButton android:id="@+id/operationMultiply" style="@style/LedgerToggleButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="×" android:contentDescription="乘" />
         <com.google.android.material.button.MaterialButton android:id="@+id/operationDivide" style="@style/LedgerToggleButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="÷" android:contentDescription="除" />
     </com.google.android.material.button.MaterialButtonToggleGroup>
-    <com.google.android.material.textfield.TextInputLayout android:id="@+id/operandInput" style="@style/LedgerInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:hint="输入计算数值">
+    <TextView style="@style/LedgerCaption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="计算数值" />
+    <com.google.android.material.textfield.TextInputLayout android:id="@+id/operandInput" style="@style/LedgerInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" app:hintEnabled="false">
         <com.google.android.material.textfield.TextInputEditText android:id="@+id/operand" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" android:singleLine="true" android:hint="例如 5 或 0.8" />
     </com.google.android.material.textfield.TextInputLayout>
     <TextView android:id="@+id/resultPreview" style="@style/LedgerSectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="调整后金额" />

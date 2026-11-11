@@ -1,5 +1,10 @@
 # 验证说明
 
+## 当前版本1.1.1
+
+- `testDebugUnitTest` 全套 290 项通过，0 失败；`assembleRelease` 成功。APK 22,282,788 字节，SHA-256 `a0c99e7d95ad185a86bd6919402e4c191a5984d6208f5fada866a60a8fa0a802`，versionCode36，v2 签名与原证书已核对。
+- OPPO PFEM10 上重现旧版输入框双提示重叠，覆盖安装后确认文字分开；临时输入减 5 后预览 ¥7.34，测试账单未保存。通知读取授权仍在。详见[本版报告](updates/1.1.1.md)。
+
 ## 当前版本1.1.0
 
 - `testDebugUnitTest` 全套 290 项通过，0 失败；`assembleRelease` 成功。APK 22,282,752 字节，SHA-256 `80f74f7e9df81ff8da7157dd405406e627e63a942f7f5a8cae7b50ade5943bf4`，versionCode35，v2 签名与原证书已核对。
