@@ -316,7 +316,7 @@ class TransactionsFragment : Fragment() {
                     else -> "这个月份还没有账单\n点击“记一笔”或切换月份"
                 }
                 b.resultCount.text = (if (hasMore) "已显示 ${rows.size} 笔" else "${rows.size} 笔") + when {
-                    filter.amountPendingOnly -> " · 待确认金额"
+                    filter.amountPendingOnly -> " · 待确认金额 · 长按可合并"
                     nonDateCount > 0 -> " · 筛选 $nonDateCount 项"
                     else -> " · 长按多选"
                 }

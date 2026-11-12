@@ -32,13 +32,38 @@ class TransactionAggregationTest {
         assertEquals(PaymentMethod.ALIPAY, tie.paymentMethod)
     }
 
-    @Test fun rejectsMixedTypesUnconfirmedAndRefunds() {
+    @Test fun acceptsPendingAmountsAndRejectsMixedTypesAndRefunds() {
         assertTrue(runCatching { TransactionAggregation.preview(listOf(
             bill(1, 100, 1, PaymentMethod.WECHAT), bill(2, 100, 2, PaymentMethod.WECHAT, TransactionType.INCOME))) }.isFailure)
-        assertTrue(runCatching { TransactionAggregation.preview(listOf(
-            bill(1, 100, 1, PaymentMethod.WECHAT), bill(2, 100, 2, PaymentMethod.WECHAT).copy(amountConfirmed = false))) }.isFailure)
+        val pending = TransactionAggregation.preview(listOf(
+            bill(1, 100, 1, PaymentMethod.WECHAT),
+            bill(2, 200, 2, PaymentMethod.WECHAT).copy(amountConfirmed = false),
+            bill(3, 0, 3, PaymentMethod.ALIPAY).copy(amountConfirmed = false)))
+        assertEquals(300L, pending.amountCents)
+        assertEquals(2, pending.pendingAmountCount)
+        assertEquals(1, pending.missingAmountCount)
         assertTrue(runCatching { TransactionAggregation.preview(listOf(
             bill(1, 100, 1, PaymentMethod.WECHAT), bill(2, 100, 2, PaymentMethod.WECHAT).copy(refundOfTransactionId = 9))) }.isFailure)
+    }
+
+    @Test fun pendingBillsCanBeReplacedOnlyByAConfirmedAmount() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), LedgerDatabase::class.java)
+            .allowMainThreadQueries().build()
+        try {
+            val dao = db.dao()
+            dao.insertTransactions(listOf(
+                bill(1, 125, 1000, PaymentMethod.WECHAT).copy(amountConfirmed = false),
+                bill(2, 0, 2000, PaymentMethod.ALIPAY).copy(amountConfirmed = false)))
+            val originals = listOf(dao.transaction(1)!!, dao.transaction(2)!!)
+            val replacement = bill(0, 350, 2000, PaymentMethod.ALIPAY, note = "合并").copy(amountConfirmed = true)
+            assertTrue(runCatching { dao.replaceWithAggregate(listOf(1, 2), originals,
+                replacement.copy(amountConfirmed = false), emptyList()) }.isFailure)
+            assertEquals(2, dao.allTransactionsOnce().size)
+            val id = dao.replaceWithAggregate(listOf(1, 2), originals, replacement, emptyList())
+            assertEquals(1, dao.allTransactionsOnce().size)
+            assertEquals(350L, dao.transaction(id)!!.amountCents)
+            assertTrue(dao.transaction(id)!!.amountConfirmed)
+        } finally { db.close() }
     }
 
     @Test fun replacementIsAtomicKeepsTagsAndBlocksLinkedRefunds() = runBlocking {
@@ -53,7 +78,7 @@ class TransactionAggregationTest {
             val secondTag = dao.insertTag(Tag(name = "购物"))
             dao.replaceTransactionTags(1, listOf(tag))
             dao.replaceTransactionTags(2, listOf(secondTag))
-            val replacement = bill(0, 350, 3000, PaymentMethod.ALIPAY, note = "聚合")
+            val replacement = bill(0, 350, 3000, PaymentMethod.ALIPAY, note = "合并")
             val mergedId = dao.replaceWithAggregate(listOf(1, 2), listOf(dao.transaction(1)!!, dao.transaction(2)!!),
                 replacement, listOf(tag, secondTag))
             assertEquals(setOf(mergedId, 3L), dao.allTransactionsOnce().map { it.id }.toSet())

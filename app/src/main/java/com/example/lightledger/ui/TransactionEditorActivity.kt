@@ -64,7 +64,7 @@ class TransactionEditorActivity : LedgerActivity() {
             intent.getLongArrayExtra(EXTRA_AGGREGATE_IDS)?.toList().orEmpty() else emptyList()
         if (id != 0L || aggregateSourceIds.isNotEmpty()) {
             // The record is read asynchronously. Never render the new-bill form for an edit.
-            binding.pageTitle.text = if (aggregateSourceIds.isNotEmpty()) "聚合账单" else "编辑账单"
+            binding.pageTitle.text = if (aggregateSourceIds.isNotEmpty()) "合并账单" else "编辑账单"
             binding.editorScroll.visibility = View.INVISIBLE
             binding.save.visibility = View.INVISIBLE
         } else if (intent.action == ACTION_SCREENSHOT_CONFIRM) {
@@ -140,7 +140,7 @@ class TransactionEditorActivity : LedgerActivity() {
                 try {
                     val source = repository.transactionsByIds(aggregateSourceIds)
                     require(source.size == aggregateSourceIds.size) { "部分账单已变化，请重新选择" }
-                    require(repository.linkedRefundCountForIds(aggregateSourceIds) == 0) { "存在关联退款，不能聚合" }
+                    require(repository.linkedRefundCountForIds(aggregateSourceIds) == 0) { "存在关联退款，不能合并" }
                     aggregateSourceSnapshot = source
                     showAggregate(TransactionAggregation.preview(source))
                     selectedTagIds.addAll(repository.tagIdsForTransactions(aggregateSourceIds))
@@ -148,7 +148,7 @@ class TransactionEditorActivity : LedgerActivity() {
                     binding.editorScroll.visibility = View.VISIBLE
                     binding.save.visibility = View.VISIBLE
                 } catch (e: Exception) {
-                    Toast.makeText(this@TransactionEditorActivity, e.message ?: "无法聚合这些账单", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@TransactionEditorActivity, e.message ?: "无法合并这些账单", Toast.LENGTH_LONG).show()
                     finish(); return@launch
                 }
             } else if (intent.action == ACTION_SCREENSHOT_CONFIRM) {
@@ -210,12 +210,17 @@ class TransactionEditorActivity : LedgerActivity() {
 
     private fun showAggregate(preview: AggregationPreview) {
         showMoreDetails(false)
-        binding.pageTitle.text = "聚合账单"
+        binding.pageTitle.text = "合并账单"
         binding.save.text = "保存并替换"
-        binding.noteInput.hint = "聚合备注"
-        binding.ocrWarning.text = "已选 ${aggregateSourceIds.size} 笔${UiFormat.type(preview.type)}，金额、时间和支付方式已填好。保存后将替换原账单。"
+        binding.noteInput.hint = "合并备注"
+        binding.ocrWarning.text = if (preview.pendingAmountCount > 0) {
+            "已选 ${aggregateSourceIds.size} 笔，其中 ${preview.pendingAmountCount} 笔金额待确认。请核对合并总额，必要时修改；保存后将以这个金额替换原账单。"
+        } else {
+            "已选 ${aggregateSourceIds.size} 笔${UiFormat.type(preview.type)}，金额、时间和支付方式已填好。保存后将替换原账单。"
+        }
         binding.ocrWarning.visibility = View.VISIBLE
-        binding.amount.setText(BigDecimal.valueOf(preview.amountCents, 2).toPlainString())
+        binding.amount.setText(if (preview.missingAmountCount > 0 || preview.amountCents == 0L) ""
+            else BigDecimal.valueOf(preview.amountCents, 2).toPlainString())
         setType(preview.type)
         binding.typeToggle.visibility = View.GONE
         selectPaymentMethod(preview.paymentMethod)
@@ -473,7 +478,7 @@ class TransactionEditorActivity : LedgerActivity() {
 
     private fun save() {
         if (aggregateSourceIds.isNotEmpty() && binding.note.text.isNullOrBlank()) {
-            binding.noteInput.error = "请填写聚合备注"
+            binding.noteInput.error = "请填写合并备注"
             return
         }
         binding.noteInput.error = null
@@ -525,8 +530,10 @@ class TransactionEditorActivity : LedgerActivity() {
     }
 
     private fun confirmAggregate(transaction: LedgerTransaction) {
+        val pendingCount = aggregateSourceSnapshot.count { it.requiresAmountConfirmation() }
+        val pendingMessage = if (pendingCount > 0) "其中 $pendingCount 笔原账单金额待确认；请确认合并总额正确。" else ""
         AlertDialog.Builder(this).setTitle("保存并替换 ${aggregateSourceIds.size} 笔账单？")
-            .setMessage("新账单金额 ${UiFormat.money(transaction.amountCents)}。原账单将被删除，无法撤销；原有备注已带入，可返回检查。")
+            .setMessage("合并金额 ${UiFormat.money(transaction.amountCents)}。${pendingMessage}原账单将被删除，无法撤销；原有备注已带入，可返回检查。")
             .setNegativeButton("继续编辑", null)
             .setPositiveButton("保存并替换") { _, _ ->
                 binding.save.isEnabled = false
@@ -538,7 +545,7 @@ class TransactionEditorActivity : LedgerActivity() {
                         finish()
                     } catch (e: Exception) {
                         binding.save.isEnabled = true
-                        Toast.makeText(this@TransactionEditorActivity, "聚合失败：${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@TransactionEditorActivity, "合并失败：${e.localizedMessage}", Toast.LENGTH_LONG).show()
                     }
                 }
             }.show()

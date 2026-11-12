@@ -1,6 +1,11 @@
 # 验证说明
 
-## 当前版本1.1.2
+## 当前版本1.1.3
+
+- `testDebugUnitTest`全套294项通过，0失败；`assembleRelease`成功。APK 22,299,172字节，SHA-256 `13563222ec0eaba9910f6a172b1ca1a27ebbeff9ecfd9a996df20e3ad175bfe5`，versionCode38，v2签名与1.1.2证书一致。
+- 待确认金额与零金额账单的合并及原子替换由本地测试覆盖；尚未在真机操作合并或进行真实付款。详见[本版报告](updates/1.1.3.md)。
+
+## 版本1.1.2
 
 - `testDebugUnitTest` 全套 293 项通过，0 失败；`assembleRelease` 成功。APK 22,299,172 字节，SHA-256 `fab0337f6b66ad1f4d3ecc049251f1af1cd0ce3ee552cad93672fa15854c0a37`，versionCode37，v2 签名与 1.1.1 证书一致。
 - 合成通知验证付款相关历史不被普通聊天冲掉、仍在通知栏的未处理付款补查一次且不会重复处理。尚未覆盖安装到真机，也未进行本版真实付款。详见[本版报告](updates/1.1.2.md)。

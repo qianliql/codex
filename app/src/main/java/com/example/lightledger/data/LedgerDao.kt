@@ -245,15 +245,16 @@ interface LedgerDao {
         require(expected.size == targets.size && expectedById.size == targets.size &&
             originals.all { expectedById[it.id] == it }) { "原账单已变化，请重新选择并核对金额" }
         TransactionAggregation.preview(originals)
-        require(targets.chunked(400).sumOf { linkedRefundCountForIds(it) } == 0) { "存在关联退款，不能聚合" }
+        require(targets.chunked(400).sumOf { linkedRefundCountForIds(it) } == 0) { "存在关联退款，不能合并" }
         require(replacement.id == 0L && replacement.type == originals.first().type && replacement.amountCents > 0 &&
+            replacement.amountConfirmed &&
             replacement.refundOfTransactionId == null && replacement.notificationKey == null &&
-            replacement.source == TransactionSource.MANUAL) { "聚合账单数据无效" }
+            replacement.source == TransactionSource.MANUAL) { "合并账单数据无效" }
         val newId = insertTransaction(replacement)
         insertTransactionTags(tagIds.distinct().map { TransactionTagCrossRef(newId, it) })
         originals.mapNotNull { it.notificationKey }.forEach { putSetting(AppSetting(RETIRED_RECORD_KEY + it, "1")) }
         val removed = targets.chunked(400).sumOf { deleteTransactionsByIds(it) }
-        check(removed == targets.size) { "原账单数量已变化，未完成聚合" }
+        check(removed == targets.size) { "原账单数量已变化，未完成合并" }
         return newId
     }
     @Transaction suspend fun deleteTransactionsSafely(ids: List<Long>): Int {

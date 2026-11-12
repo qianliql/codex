@@ -8,7 +8,7 @@
 2. 查看版本变化，点“下载更新”。页面显示下载进度，完成后出现“安装更新”。
 3. 首次从轻账本安装时，按照系统页面允许此应用安装更新；返回后由Android安装界面确认升级。系统不会静默安装。
 
-如果网络暂时不可用，仍可照常使用账本，稍后重试或从[GitHub版本页](https://github.com/qianliql/codex/releases/latest)、[Gitee安装包镜像](https://gitee.com/qianlihuo/money/releases)下载安装包。系统清除了应用缓存时，已下载的APK需要重新下载。原同签名版本可覆盖升级；遇到签名冲突应先导出并验证本地备份，避免卸载造成账本丢失。
+如果网络暂时不可用，仍可照常使用账本，稍后重试或从[GitHub版本页](https://github.com/qianliql/codex/releases/latest)、[Gitee安装包镜像](https://gitee.com/qianlihuo/money/releases)（对应版本已发布时）下载安装包。系统清除了应用缓存时，已下载的APK需要重新下载。原同签名版本可覆盖升级；遇到签名冲突应先导出并验证本地备份，避免卸载造成账本丢失。
 
 ## 版本来源与校验
 
@@ -30,8 +30,15 @@
 
 1. 更新`versionName`和递增的`versionCode`，完成源码、测试与同签名APK构建。报告记录实际验证范围及限制。
 2. 计算最终APK字节数与SHA-256，生成匹配的`app-update.json`和`SHA256SUMS`；不要在这些文件或公开报告中放入账单、备份、真实通知、设备标识或私钥。
-3. 先在公开Gitee仓库`qianlihuo/money`建立相同版本号的发行版并上传APK，公开下载后重新核对字节数和SHA-256。
+3. Gitee镜像可用时，在公开仓库`qianlihuo/money`建立相同版本号的发行版并上传APK，公开下载后核对字节数和SHA-256。镜像未发布时不要声称其可用；客户端会退回GitHub下载。
 4. 推送源码、更新报告和版本标签，建立GitHub **草稿** Release。上传APK及两份校验资产，核对标签、文件大小、SHA-256和下载地址。
 5. 所有资产齐全后再发布为最新正式版。发布后验证`releases/latest`返回该版本，应用内检查可读到版本文件，下载校验通过且系统安装界面可打开。
 
 同签名覆盖安装和账本保留需要继续使用原交付签名；新的本地调试签名不能替代。若未来更换签名、仓库地址或版本文件格式，应先设计迁移路径，不能直接将不兼容APK推送给已安装用户。
+
+## 国内下载源评估
+
+- [Gitee发行版](https://help.gitee.com/repository/release/create)支持每个附件不超过100 MB、单仓库附件合计不超过1 GB；当前APK满足单文件限制，但长期版本需要管理总量。[Gitee Go Release插件](https://blog.gitee.com/2026/01/23/gitee-go-release-plugin-auto-deploy-artifact/)可在流水线中创建版本并上传构建产物，适合作为后续自动镜像方案；启用前仍要验证本仓库权限和公开下载结果。
+- [阿里云OSS](https://help.aliyun.com/zh/oss/traffic-fees/)可做独立下载源，需要用户配置存储桶、发布凭据和费用预算；公网下载会产生流出流量费用。引入前须先实际上传、从手机网络下载并核对大小及SHA-256。
+- [腾讯云COS](https://cloud.tencent.com/document/product/436/102489)新存储桶用默认域名不能下载APK，须配置自有域名或CDN；因此目前不能把默认COS地址直接写入更新器。
+- 不论使用哪一源，GitHub保留版本信息与更新报告；客户端只接纳经过版本、大小、SHA-256、包名和签名核验的安装包。新增源需要限定可信域名并验证跳转路径。
