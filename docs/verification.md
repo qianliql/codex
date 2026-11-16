@@ -1,6 +1,11 @@
 # 验证说明
 
-## 当前版本1.1.3
+## 当前版本1.1.4
+
+- `testDebugUnitTest`全套296项通过，0失败；`assembleRelease`成功。APK 22,299,176字节，SHA-256 `49f514e3fd7fa4bf0f7e814230ec63e28910922289a92623b8c3dc7befbebc87`，versionCode39，v2签名与1.1.3证书一致。
+- 模拟待确认列表中选中、合并、返回，原账单从列表及数据库消失，新账单保留一笔。尚未在真机操作合并或核对用户设备上的相似账单；详见[本版报告](updates/1.1.4.md)。
+
+## 版本1.1.3
 
 - `testDebugUnitTest`全套294项通过，0失败；`assembleRelease`成功。APK 22,299,172字节，SHA-256 `13563222ec0eaba9910f6a172b1ca1a27ebbeff9ecfd9a996df20e3ad175bfe5`，versionCode38，v2签名与1.1.2证书一致。
 - 待确认金额与零金额账单的合并及原子替换由本地测试覆盖；尚未在真机操作合并或进行真实付款。详见[本版报告](updates/1.1.3.md)。

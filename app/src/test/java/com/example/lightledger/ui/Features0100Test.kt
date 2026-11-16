@@ -206,6 +206,46 @@ class Features0100Test {
         } finally { controller.pause().stop().destroy() }
     }
 
+    @Test fun mergedPendingBillsLeaveThePendingList() {
+        val now = System.currentTimeMillis()
+        runBlocking { db.dao().insertTransactions(listOf(
+            LedgerTransaction(id = 201, amountCents = 125, type = TransactionType.EXPENSE,
+                timestamp = now - 2000, amountConfirmed = false),
+            LedgerTransaction(id = 202, amountCents = 225, type = TransactionType.EXPENSE,
+                timestamp = now - 1000, amountConfirmed = false),
+        )) }
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        try {
+            val activity = controller.get()
+            activity.findViewById<View>(R.id.viewUnconfirmedAmounts).performClick(); idle()
+            val list = activity.findViewById<RecyclerView>(R.id.transactionList)
+            val adapter = list.adapter as TransactionAdapter
+            await { adapter.itemCount == 2 }
+            val metrics = activity.resources.displayMetrics
+            list.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(metrics.heightPixels, View.MeasureSpec.EXACTLY))
+            list.layout(0, 0, list.measuredWidth, list.measuredHeight)
+            assertTrue(list.findViewHolderForAdapterPosition(0)!!.itemView.performLongClick())
+            val second = adapter.onCreateViewHolder(list, 0)
+            adapter.onBindViewHolder(second, 1)
+            second.itemView.performClick()
+            assertTrue(activity.findViewById<View>(R.id.aggregateSelected).isEnabled)
+            activity.findViewById<View>(R.id.aggregateSelected).performClick()
+            val started = shadowOf(activity).nextStartedActivityForResult
+            assertEquals(TransactionEditorActivity.ACTION_AGGREGATE, started.intent.action)
+            val originals = runBlocking { app.repository.transactionsByIds(listOf(201, 202)) }
+            val mergedId = runBlocking { app.repository.replaceWithAggregate(listOf(201, 202), originals,
+                LedgerTransaction(amountCents = 350, type = TransactionType.EXPENSE,
+                    timestamp = now, note = "合并", amountConfirmed = true), emptyList()) }
+            shadowOf(activity).receiveResult(started.intent, android.app.Activity.RESULT_OK,
+                Intent().putExtra("savedId", mergedId))
+            await { adapter.itemCount == 0 }
+            assertNull(runBlocking { app.repository.transaction(201) })
+            assertNull(runBlocking { app.repository.transaction(202) })
+            assertEquals(mergedId, runBlocking { app.repository.snapshot().transactions.single().id })
+        } finally { controller.pause().stop().destroy() }
+    }
+
     @Test fun amountFilterIsVisibleEditableAndOldBundlesKeepNormalSearch() {
         val controller = Robolectric.buildActivity(LayoutCompatibilityTest.PreviewActivity::class.java).setup()
         try {

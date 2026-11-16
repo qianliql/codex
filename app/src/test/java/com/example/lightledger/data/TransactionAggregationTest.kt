@@ -61,8 +61,12 @@ class TransactionAggregationTest {
             assertEquals(2, dao.allTransactionsOnce().size)
             val id = dao.replaceWithAggregate(listOf(1, 2), originals, replacement, emptyList())
             assertEquals(1, dao.allTransactionsOnce().size)
+            assertNull(dao.transaction(1))
+            assertNull(dao.transaction(2))
             assertEquals(350L, dao.transaction(id)!!.amountCents)
             assertTrue(dao.transaction(id)!!.amountConfirmed)
+            assertTrue(dao.searchTransactions("", 0, 3000, -1, 0, "", "", "", false,
+                100, 0, true).isEmpty())
         } finally { db.close() }
     }
 

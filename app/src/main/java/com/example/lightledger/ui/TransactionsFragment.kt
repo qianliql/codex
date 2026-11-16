@@ -44,9 +44,12 @@ class TransactionsFragment : Fragment() {
     private val aggregatePage = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val savedId = result.data?.getLongExtra("savedId", 0L) ?: 0L
-            val anchor = survivingScrollAnchor(selectedIds) ?: currentScrollAnchor()?.let {
-                if (savedId > 0) it.copy(transactionId = savedId) else it
-            }
+            val replacedIds = selectedIds.toSet()
+            val anchor = if (filter.amountPendingOnly) null else (survivingScrollAnchor(selectedIds)
+                ?: currentScrollAnchor()?.let {
+                    if (savedId > 0) it.copy(transactionId = savedId) else it
+                })
+            adapter?.submitList(adapter?.currentList?.filterNot { it.transaction.id in replacedIds }.orEmpty())
             endSelection()
             refresh(preservePosition = anchor != null, anchorOverride = anchor)
         }
