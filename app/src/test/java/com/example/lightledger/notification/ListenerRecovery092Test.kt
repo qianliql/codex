@@ -22,6 +22,7 @@ import com.example.lightledger.data.LedgerDatabase
 import com.example.lightledger.ui.MainActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.switchmaterial.SwitchMaterial
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -135,6 +136,41 @@ class ListenerRecovery092Test {
         } finally { replacement.destroy() }
         assertFalse(PaymentNotificationService.isConnected)
         assertNotNull(jobs.getPendingJob(ListenerRecovery.RETRY_JOB))
+    }
+
+    @Test @Config(sdk = [35]) fun scheduledCheckBackfillsOnlyWithProtectionEnabledWhenItsServiceIsAbsent() {
+        setAccess(true)
+        val recovery = Robolectric.buildService(ListenerRecoveryJob::class.java).create()
+        val controller = Robolectric.buildService(PaymentNotificationService::class.java).create()
+        val listener = controller.get()
+        val params = Shadow.newInstanceOf(JobParameters::class.java)
+        fun runCheck(jobId: Int): List<Long> {
+            ReflectionHelpers.setField(params, "jobId", jobId)
+            assertTrue(recovery.get().onStartJob(params))
+            idle(1)
+            assertTrue(shadowOf(recovery.get()).isJobFinished)
+            return runBlocking {
+                app.notificationScope.coroutineContext[Job]!!.children.toList().forEach { it.join() }
+                app.repository.snapshot().transactions.map { it.amountCents }
+            }
+        }
+        try {
+            listener.onListenerConnected()
+            // Simulate an active payment notification that the system did not deliver as a callback.
+            shadowOf(listener).addActiveNotification("com.tencent.mm", 5,
+                Notification.Builder(app, "test").setContentTitle("微信支付")
+                    .setContentText("支付成功，支付金额￥6.70，收款方：虚构商店").build())
+            assertTrue(runCheck(ListenerRecovery.WATCH_JOB).isEmpty())
+            app.getSharedPreferences("listener_protection", 0).edit().putBoolean("enabled", true).apply()
+            assertFalse(ListenerProtectionService.isRunning)
+            assertEquals(listOf(670L), runCheck(ListenerRecovery.TASK_REMOVED_JOB))
+            assertEquals(listOf(670L), runCheck(ListenerRecovery.WATCH_JOB))
+            val requestedServices = generateSequence { shadowOf(app).nextStartedService }
+            assertTrue(requestedServices.none { it.component?.className == ListenerProtectionService::class.java.name })
+        } finally {
+            controller.destroy()
+            recovery.destroy()
+        }
     }
 
     @Test fun reconnectReplaysRetainedWechatAndAlipayNotificationsWithoutDuplicates() {

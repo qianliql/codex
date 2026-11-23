@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.lightledger"
         minSdk = 26
         targetSdk = 35
-        versionCode = 39
-        versionName = "1.1.4"
+        versionCode = 40
+        versionName = "1.1.5"
     }
     buildTypes {
         release {

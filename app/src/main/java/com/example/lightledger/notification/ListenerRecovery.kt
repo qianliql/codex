@@ -127,8 +127,13 @@ object ListenerRecovery {
         if (scheduler.getPendingJob(id) != null) return true
         val builder = JobInfo.Builder(id, ComponentName(context, ListenerRecoveryJob::class.java))
             .setPersisted(true)
-        if (periodic) builder.setPeriodic(15 * 60_000L)
-        else builder.setMinimumLatency(30_000L).setBackoffCriteria(30_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
+        if (periodic) {
+            builder.setPeriodic(15 * 60_000L)
+        } else {
+            // After a task swipe the listener may still be bound just before the process dies.
+            val earliestCheck = if (id == TASK_REMOVED_JOB) 10_000L else 30_000L
+            builder.setMinimumLatency(earliestCheck).setBackoffCriteria(30_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
+        }
         return runCatching { scheduler.schedule(builder.build()) == JobScheduler.RESULT_SUCCESS }
             .onFailure { Log.w("ListenerRecovery", "Could not schedule recovery", it) }.getOrDefault(false)
     }
@@ -139,7 +144,21 @@ class ListenerRecoveryJob : JobService() {
     override fun onStartJob(params: JobParameters): Boolean {
         handler.post {
             ListenerRecovery.check(this)
-            val retry = params.jobId == ListenerRecovery.RETRY_JOB &&
+            val jobId = params.jobId
+            val isScheduledCheck = jobId == ListenerRecovery.WATCH_JOB || jobId == ListenerRecovery.TASK_REMOVED_JOB
+            if (jobId == ListenerRecovery.TASK_REMOVED_JOB && ListenerProtection.isEnabled(this) &&
+                NotificationAccess.isEnabled(this)
+            ) {
+                val status = if (PaymentNotificationService.isConnected) "监听已连接" else "监听未连接"
+                NotificationDiagnostics.lifecycle(this, "最近任务移除后执行恢复检查，$status")
+            }
+            if (isScheduledCheck && ListenerProtection.isEnabled(this) && !ListenerProtectionService.isRunning &&
+                NotificationAccess.isEnabled(this) && PaymentNotificationService.isConnected
+            ) {
+                // The listener can reconnect even when the system has not restarted protection.
+                PaymentNotificationService.inspectCurrent()
+            }
+            val retry = jobId == ListenerRecovery.RETRY_JOB &&
                 NotificationAccess.isEnabled(this) && !PaymentNotificationService.isConnected
             jobFinished(params, retry)
         }

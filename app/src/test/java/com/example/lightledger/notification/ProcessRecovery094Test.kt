@@ -59,7 +59,7 @@ class ProcessRecovery094Test {
             protection.get().onTaskRemoved(Intent())
             val check = jobs.getPendingJob(ListenerRecovery.TASK_REMOVED_JOB)!!
             assertTrue(check.isPersisted); assertFalse(check.isPeriodic)
-            assertEquals(30_000L, check.minLatencyMillis)
+            assertEquals(10_000L, check.minLatencyMillis)
             assertNull(jobs.getPendingJob(ListenerRecovery.RETRY_JOB))
             repeat(10) { ListenerRecovery.check(app) }
             assertSame(check, jobs.getPendingJob(ListenerRecovery.TASK_REMOVED_JOB))

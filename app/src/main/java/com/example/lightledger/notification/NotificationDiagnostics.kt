@@ -7,7 +7,7 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Stores only source, time and processing outcome; never stores notification content. */
+/** Stores only event times and diagnostic outcomes; never stores notification content. */
 object NotificationDiagnostics {
     data class ProcessingTimes(val totalMs: Long, val parseMs: Long, val saveMs: Long, val promptMs: Long)
     private const val PREFS = "notification_diagnostics"
@@ -18,6 +18,10 @@ object NotificationDiagnostics {
     private const val HISTORY_LIMIT = 24
     private const val PAYMENT_HISTORY = "payment_results"
     private const val PAYMENT_HISTORY_LIMIT = 96
+    private const val LIFECYCLE_PREFS = "notification_listener_lifecycle"
+    private const val LIFECYCLE_EVENTS = "events"
+    private const val LIFECYCLE_LIMIT = 32
+    private const val LIFECYCLE_DISPLAY_LIMIT = 12
 
     /** A chat message cannot displace a payment notification from the diagnostic history. */
     internal fun isPaymentRelated(packageName: String, title: String, text: String): Boolean = when (packageName) {
@@ -29,9 +33,30 @@ object NotificationDiagnostics {
         else -> false
     }
 
-    fun lifecycle(context: Context, event: String) {
-        context.getSharedPreferences(PREFS, 0).edit()
-            .putString("listener_event", event).putLong("listener_time", System.currentTimeMillis()).apply()
+    @Synchronized fun lifecycle(context: Context, event: String) {
+        val prefs = context.getSharedPreferences(LIFECYCLE_PREFS, Context.MODE_PRIVATE)
+        val previous = lifecycleEvents(context)
+        val latest = previous.optJSONObject(previous.length() - 1)
+        // A sequence of identical retries adds no new state to the timeline.
+        if (latest?.optString("event") == event &&
+            (event == "已请求监听连接" || event == "系统未接受连接请求")) return
+        val events = JSONArray()
+        val first = (previous.length() - LIFECYCLE_LIMIT + 1).coerceAtLeast(0)
+        for (index in first until previous.length()) previous.optJSONObject(index)?.let { events.put(it) }
+        events.put(JSONObject().put("time", System.currentTimeMillis()).put("event", event))
+        // A task-removal callback can be followed immediately by process termination.
+        prefs.edit().putString(LIFECYCLE_EVENTS, events.toString()).commit()
+    }
+
+    private fun lifecycleEvents(context: Context): JSONArray {
+        val prefs = context.getSharedPreferences(LIFECYCLE_PREFS, Context.MODE_PRIVATE)
+        val events = runCatching { JSONArray(prefs.getString(LIFECYCLE_EVENTS, "[]")) }.getOrDefault(JSONArray())
+        if (events.length() == 0) {
+            val legacy = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val time = legacy.getLong("listener_time", 0)
+            if (time > 0) events.put(JSONObject().put("time", time).put("event", legacy.getString("listener_event", "未知")))
+        }
+        return events
     }
 
     @Synchronized fun record(context: Context, packageName: String, result: String,
@@ -95,8 +120,16 @@ object NotificationDiagnostics {
             ListenerRecovery.checkingInitialConnection -> "正在检查监听连接，尚未确认已连接"
             else -> "监听未连接，正在尝试恢复"
         }
-        val eventTime = prefs.getLong("listener_time", 0)
-        val event = if (eventTime > 0) "\n最近状态 ${format.format(Date(eventTime))}：${prefs.getString("listener_event", "未知")}" else ""
+        val lifecycle = lifecycleEvents(context)
+        val lifecycleFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM, Locale.CHINA)
+        val latest = lifecycle.optJSONObject(lifecycle.length() - 1)
+        val event = latest?.let {
+            "\n最近状态 ${lifecycleFormat.format(Date(it.optLong("time")))}：${it.optString("event")}"
+        }.orEmpty()
+        val lifecycleHistory = ((lifecycle.length() - LIFECYCLE_DISPLAY_LIMIT).coerceAtLeast(0) until lifecycle.length()).reversed()
+            .mapNotNull { lifecycle.optJSONObject(it) }
+            .joinToString("\n") { "${lifecycleFormat.format(Date(it.optLong("time")))} · ${it.optString("event")}" }
+        val timeline = if (lifecycle.length() > 1) "\n\n监听状态记录：\n$lifecycleHistory" else ""
         val visible = runCatching { context.getSystemService(android.app.NotificationManager::class.java)
             .activeNotifications.any { it.id == ListenerProtectionService.NOTIFICATION_ID } }.getOrNull()
         val protection = when {
@@ -107,7 +140,7 @@ object NotificationDiagnostics {
         }
         val recent = runCatching { JSONArray(prefs.getString(HISTORY, "[]")) }.getOrDefault(JSONArray())
         val payments = runCatching { JSONArray(prefs.getString(PAYMENT_HISTORY, "[]")) }.getOrDefault(JSONArray())
-        return state + "\n" + protection + event + "\n\n" + ProcessExitDiagnostics.summary(context) + "\n\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->
+        return state + "\n" + protection + event + "\n\n" + ProcessExitDiagnostics.summary(context) + timeline + "\n\n" + listOf("微信", "支付宝").joinToString("\n\n") { source ->
             val time = prefs.getLong("${source}_time", 0L)
             if (time == 0L) "$source：尚未收到通知" else {
                 val saved = prefs.getLong("${source}_saved", 0L)
